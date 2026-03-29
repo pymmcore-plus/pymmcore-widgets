@@ -192,6 +192,7 @@ class StageExplorer(QWidget):
         tb.show_grid_action.triggered.connect(self._on_show_grid_action)
         tb.delete_rois_action.triggered.connect(self.roi_manager.clear)
         tb.scan_action.triggered.connect(self._on_scan_action)
+        tb.stop_scan_action.triggered.connect(self._on_stop_scan_action)
         tb.marker_mode_action_group.triggered.connect(self._update_marker_mode)
         tb.scan_menu.valueChanged.connect(self._on_scan_options_changed)
 
@@ -211,6 +212,7 @@ class StageExplorer(QWidget):
         self._mmc.events.systemConfigurationLoaded.connect(self._on_sys_config_loaded)
         self._mmc.events.imageSnapped.connect(self._on_image_snapped)
         self._mmc.mda.events.frameReady.connect(self._on_frame_ready)
+        self._mmc.mda.events.sequenceFinished.connect(self._on_sequence_finished)
         self._mmc.events.pixelSizeChanged.connect(self._on_pixel_size_changed)
         self._mmc.events.pixelSizeAffineChanged.connect(
             self._on_pixel_size_affine_changed
@@ -296,24 +298,12 @@ class StageExplorer(QWidget):
         self, image: np.ndarray, stage_x_um: float, stage_y_um: float
     ) -> None:
         """Add an image to the scene at a give (x, y) stage position in microns."""
-        # compute half-image shift from actual image dimensions so it's always
-        # correct regardless of camera property changes.
-        # by default, vispy add the images from the bottom-left corner. We need to
-        # translate by -w/2 and -h/2 so the position corresponds to the center of the
-        # images. In addition, this makes sure the rotation (if any) is applied around
-        # the center of the image.
-        h, w = image.shape[:2]
-        half_img_shift = np.eye(4)
-        half_img_shift[0:2, 3] = (-w / 2, -h / 2)
-
         stage_shift = np.eye(4)
         stage_shift[0:2, 3] = (stage_x_um, stage_y_um)
-        matrix = stage_shift @ self._affine_state.system_affine @ half_img_shift
+        # TODO: it's a little odd we apply half_img_shift here, but not in the
+        # stage position marker... figure that out.
+        matrix = stage_shift @ self._affine_state.system_affine @ self._half_img_shift
         self._stage_viewer.add_image(image, transform=matrix.T)
-
-        # update the stage position marker size to match the actual image
-        if self._stage_pos_marker is not None:
-            self._stage_pos_marker.set_rect_size(w, h)
 
         if not self._contrast_slider.isVisible():
             self._contrast_slider.setVisible(True)
@@ -368,6 +358,13 @@ class StageExplorer(QWidget):
             return
         px = self._mmc.getPixelSizeUm()
         self.roi_manager.update_fovs((img_w * px, img_h * px))
+
+        # by default, vispy add the images from the bottom-left corner. We need to
+        # translate by -w/2 and -h/2 so the position corresponds to the center of the
+        # images. In addition, this makes sure the rotation (if any) is applied around
+        # the center of the image.
+        self._half_img_shift = np.eye(4)
+        self._half_img_shift[0:2, 3] = (-img_w / 2, -img_h / 2)
 
         if self._stage_pos_marker is not None:
             self._stage_pos_marker.set_rect_size(img_w, img_h)
@@ -424,6 +421,19 @@ class StageExplorer(QWidget):
                 self._our_mda_running = True
                 self._mmc.run_mda(seq)
 
+    @Slot()
+    def _on_stop_scan_action(self) -> None:
+        """Cancel the running scan, or stop the stage if no scan is running."""
+        if self._mmc.mda.is_running():
+            self._mmc.mda.cancel()
+        elif xy_dev := self._mmc.getXYStageDevice():
+            self._mmc.stop(xy_dev)
+
+    @Slot()
+    def _on_sequence_finished(self) -> None:
+        """Reset scan state when the MDA sequence finishes."""
+        self._our_mda_running = False
+
     @Slot(object)
     def _on_scan_options_changed(self, value: tuple[float, OrderMode]) -> None:
         """Update scan settings on the ROI manager so visuals refresh."""
@@ -436,7 +446,6 @@ class StageExplorer(QWidget):
         if a0.key() == Qt.Key.Key_Escape:
             if self._our_mda_running:
                 self._mmc.mda.cancel()
-                self._our_mda_running = False
         super().keyPressEvent(a0)
 
     # CORE ------------------------------------------------------------------------
@@ -657,7 +666,7 @@ class _MaxSpinBox(QSpinBox):
         font = self.font()
         font.setPointSize(11)
         self.setFont(font)
-        self.setFixedWidth(self.fontMetrics().horizontalAdvance("888888") + 4)
+        self.setFixedWidth(self.fontMetrics().horizontalAdvance("888888"))
         self.setStyleSheet("_MaxSpinBox { background: transparent; border: none; }")
 
     def _core(self) -> CMMCorePlus | None:
@@ -847,6 +856,10 @@ class StageExplorerToolbar(QToolBar):
         self.scan_menu = ScanMenu(self)
         scan_btn.setMenu(self.scan_menu)
         scan_btn.setPopupMode(QToolButton.ToolButtonPopupMode.MenuButtonPopup)
+        self.stop_scan_action = self.addAction(
+            QIconifyIcon("bi:sign-stop", color=GRAY),
+            "Stop Scan",
+        )
 
 
 class ScanMenu(QMenu):

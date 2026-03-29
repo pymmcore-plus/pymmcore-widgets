@@ -181,7 +181,7 @@ def test_scan_menu_default_value(qtbot: QtBot) -> None:
     qtbot.addWidget(menu)
     overlap, mode = menu.value()
     assert overlap == 0.0
-    assert mode == useq.OrderMode.spiral
+    assert mode == useq.OrderMode.row_wise_snake
 
 
 def test_scan_menu_value_changed_signal(qtbot: QtBot) -> None:
@@ -196,8 +196,8 @@ def test_scan_menu_mode_change(qtbot: QtBot) -> None:
     menu = ScanMenu()
     qtbot.addWidget(menu)
     with qtbot.waitSignal(menu.valueChanged):
-        menu._mode_cbox.setCurrentEnum(useq.OrderMode.row_wise_snake)
-    assert menu.value()[1] == useq.OrderMode.row_wise_snake
+        menu._mode_cbox.setCurrentEnum(useq.OrderMode.spiral)
+    assert menu.value()[1] == useq.OrderMode.spiral
 
 
 # ---------------------------------------------------------------------------
@@ -604,3 +604,42 @@ def test_stage_explorer_pixel_size_handlers_refresh_affine(
     # neither should raise
     explorer._on_pixel_size_changed(0.065)
     explorer._on_pixel_size_affine_changed()
+
+
+# ---------------------------------------------------------------------------
+# StageExplorer - stop scan action
+# ---------------------------------------------------------------------------
+
+
+def test_stop_scan_action_cancels_when_mda_running(qtbot: QtBot) -> None:
+    """Triggering stop_scan_action calls mda.cancel() when a sequence is running."""
+    explorer = StageExplorer()
+    qtbot.addWidget(explorer)
+    with (
+        patch.object(explorer._mmc.mda, "is_running", return_value=True),
+        patch.object(explorer._mmc.mda, "cancel") as mock_cancel,
+    ):
+        explorer._toolbar.stop_scan_action.trigger()
+    mock_cancel.assert_called_once()
+
+
+def test_stop_scan_action_stops_stage_when_no_mda(qtbot: QtBot) -> None:
+    """Triggering stop_scan_action stops the XY stage when no sequence is running."""
+    explorer = StageExplorer()
+    qtbot.addWidget(explorer)
+    xy_dev = explorer._mmc.getXYStageDevice()
+    with (
+        patch.object(explorer._mmc.mda, "is_running", return_value=False),
+        patch.object(explorer._mmc, "stop") as mock_stop,
+    ):
+        explorer._toolbar.stop_scan_action.trigger()
+    mock_stop.assert_called_once_with(xy_dev)
+
+
+def test_sequence_finished_resets_our_mda_running(qtbot: QtBot) -> None:
+    """_on_sequence_finished resets _our_mda_running to False."""
+    explorer = StageExplorer()
+    qtbot.addWidget(explorer)
+    explorer._our_mda_running = True
+    explorer._on_sequence_finished()
+    assert not explorer._our_mda_running
