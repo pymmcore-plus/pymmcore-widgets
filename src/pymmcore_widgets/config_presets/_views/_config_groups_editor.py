@@ -697,13 +697,15 @@ class ConfigGroupsEditor(QWidget):
 
         groups = self.data()
 
-        with block_core(self._core.events):
-            # Delete all existing config groups from core
-            for group_name in self._core.getAvailableConfigGroups():
-                self._core.deleteConfigGroup(group_name)
+        # Delete all existing config groups from core
+        for group_name in self._core.getAvailableConfigGroups():
+            self._core.deleteConfigGroup(group_name)
 
-            # Re-define all groups/presets/settings
-            for group in groups:
+        # Re-define all groups/presets/settings
+        for group in groups:
+            # Blocking signal per to avoid excessive signals and redundant updates
+            # Emitting once per group below
+            with block_core(self._core.events):
                 for preset in group.presets.values():
                     for setting in preset.settings:
                         self._core.defineConfig(
@@ -713,12 +715,20 @@ class ConfigGroupsEditor(QWidget):
                             setting.property_name,
                             setting.value,
                         )
+            # Emit configDefined only at the group level
+            self._core.events.configDefined.emit(
+                group.name,
+                preset.name,
+                setting.device_label,
+                setting.property_name,
+                setting.value,
+            )
 
-            # Restore channel group
-            for group in groups:
-                if group.is_channel_group:
-                    self._core.setChannelGroup(group.name)
-                    break
+        # Restore channel group
+        for group in groups:
+            if group.is_channel_group:
+                self._core.setChannelGroup(group.name)
+                break
 
         self._clear_dirty()
 

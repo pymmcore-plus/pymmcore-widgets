@@ -584,6 +584,42 @@ def test_editor_close_event_no_apply_buttons_without_core(
     assert "Apply and Save" not in button_texts
 
 
+def test_editor_apply_emits_core_signals(
+    editor: ConfigGroupsEditor,
+    global_mmcore: CMMCorePlus,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """_do_apply emits configGroupDeleted once per deleted group and
+    configDefined once per group (not per setting)."""
+    monkeypatch.setattr(
+        QMessageBox, "question", lambda *_: QMessageBox.StandardButton.No
+    )
+
+    deleted: list[str] = []
+    defined_groups: list[str] = []
+    global_mmcore.events.configGroupDeleted.connect(lambda g: deleted.append(g))
+    global_mmcore.events.configDefined.connect(lambda g, *_: defined_groups.append(g))
+
+    groups = editor.data()
+    n_groups = len(groups)
+
+    editor._apply_to_core()
+
+    # configGroupDeleted fires once per original group
+    assert len(deleted) == n_groups
+    assert set(deleted) == {g.name for g in groups}
+
+    # configDefined fires once per group (not per setting)
+    assert len(defined_groups) == n_groups
+    assert set(defined_groups) == {g.name for g in groups}
+
+    # Cleanup
+    editor._model.setData(
+        editor._model.index(0), groups[0].name, Qt.ItemDataRole.EditRole
+    )
+    editor._apply_to_core()
+
+
 def test_editor_do_apply_no_core(qtbot: QtBot) -> None:
     """_do_apply is a no-op when no core is set."""
     editor = ConfigGroupsEditor()
