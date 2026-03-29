@@ -423,8 +423,11 @@ class StageExplorer(QWidget):
 
     @Slot()
     def _on_stop_scan_action(self) -> None:
-        """Cancel the running scan."""
-        self._mmc.mda.cancel()
+        """Cancel the running scan, or stop the stage if no scan is running."""
+        if self._mmc.mda.is_running():
+            self._mmc.mda.cancel()
+        elif xy_dev := self._mmc.getXYStageDevice():
+            self._mmc.stop(xy_dev)
 
     @Slot()
     def _on_sequence_finished(self) -> None:
