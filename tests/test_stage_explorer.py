@@ -181,7 +181,7 @@ def test_scan_menu_default_value(qtbot: QtBot) -> None:
     qtbot.addWidget(menu)
     overlap, mode = menu.value()
     assert overlap == 0.0
-    assert mode == useq.OrderMode.row_wise_snake
+    assert mode == useq.OrderMode.spiral
 
 
 def test_scan_menu_value_changed_signal(qtbot: QtBot) -> None:
@@ -196,8 +196,8 @@ def test_scan_menu_mode_change(qtbot: QtBot) -> None:
     menu = ScanMenu()
     qtbot.addWidget(menu)
     with qtbot.waitSignal(menu.valueChanged):
-        menu._mode_cbox.setCurrentEnum(useq.OrderMode.spiral)
-    assert menu.value()[1] == useq.OrderMode.spiral
+        menu._mode_cbox.setCurrentEnum(useq.OrderMode.row_wise_snake)
+    assert menu.value()[1] == useq.OrderMode.row_wise_snake
 
 
 # ---------------------------------------------------------------------------
