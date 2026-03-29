@@ -671,7 +671,7 @@ class ConfigGroupsEditor(QWidget):
 
     def closeEvent(self, event: QCloseEvent) -> None:
         """Intercept close to ask about unsaved changes."""
-        if not self._dirty:
+        if not self._dirty or not self.isVisible():
             event.accept()
             return
 
