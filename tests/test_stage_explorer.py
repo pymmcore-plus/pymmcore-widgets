@@ -604,3 +604,26 @@ def test_stage_explorer_pixel_size_handlers_refresh_affine(
     # neither should raise
     explorer._on_pixel_size_changed(0.065)
     explorer._on_pixel_size_affine_changed()
+
+
+# ---------------------------------------------------------------------------
+# StageExplorer - stop scan action
+# ---------------------------------------------------------------------------
+
+
+def test_stop_scan_action_calls_cancel(qtbot: QtBot) -> None:
+    """Triggering stop_scan_action calls mda.cancel()."""
+    explorer = StageExplorer()
+    qtbot.addWidget(explorer)
+    with patch.object(explorer._mmc.mda, "cancel") as mock_cancel:
+        explorer._toolbar.stop_scan_action.trigger()
+    mock_cancel.assert_called_once()
+
+
+def test_sequence_finished_resets_our_mda_running(qtbot: QtBot) -> None:
+    """_on_sequence_finished resets _our_mda_running to False."""
+    explorer = StageExplorer()
+    qtbot.addWidget(explorer)
+    explorer._our_mda_running = True
+    explorer._on_sequence_finished()
+    assert not explorer._our_mda_running
