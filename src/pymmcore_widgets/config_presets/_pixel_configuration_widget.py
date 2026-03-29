@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING, Any, cast
 
 from pymmcore_plus import CMMCorePlus, DeviceProperty
 from pymmcore_plus.model import PixelSizeGroup, PixelSizePreset, Setting
-from qtpy.QtCore import Qt, Signal
+from qtpy.QtCore import QModelIndex, Qt, Signal, Slot
 from qtpy.QtWidgets import (
     QAbstractSpinBox,
     QDoubleSpinBox,
@@ -200,6 +200,7 @@ class PixelConfigurationWidget(QWidget):
 
     # -------------- Private API --------------
 
+    @Slot()
     def _on_sys_config_loaded(self) -> None:
         self._px_table._remove_all()
         self._resID_map.clear()
@@ -228,6 +229,7 @@ class PixelConfigurationWidget(QWidget):
                 # select first row of px_table corresponding to the first resolutionID
                 self._px_table._table.selectRow(row)
 
+    @Slot(object)
     def _on_viewer_value_changed(self, value: list[Setting]) -> None:
         # get row of the selected resolutionID
         items = self._px_table._table.selectedItems()
@@ -236,6 +238,7 @@ class PixelConfigurationWidget(QWidget):
         self._resID_map[items[0].row()].settings = value
         self._update_other_resolutionIDs(items[0].row(), value)
 
+    @Slot()
     def _on_px_table_selection_changed(self) -> None:
         """Update property and viewer table when selection in the px table changes."""
         items = self._px_table._table.selectedItems()
@@ -250,6 +253,7 @@ class PixelConfigurationWidget(QWidget):
         with signals_blocked(self._affine_table):
             self._affine_table.setValue(self._resID_map[row].affine)
 
+    @Slot(QTableWidgetItem)
     def _on_resolutionID_name_changed(self, item: QTableWidgetItem) -> None:
         """Update the resolutionID name in the configuration map."""
         res_ID_row, res_ID_name = item.row(), item.text()
@@ -276,6 +280,7 @@ class PixelConfigurationWidget(QWidget):
         """list[PixelSizePreset] to dict[PixelSizePreset.name: PixelSizePreset]."""
         return {rec.name: rec for rec in value}
 
+    @Slot()
     def _on_px_value_changed(self) -> None:
         """Update the pixel size value in the configuration map."""
         spin = cast("QDoubleSpinBox", self.sender())
@@ -293,6 +298,7 @@ class PixelConfigurationWidget(QWidget):
             return
         self._resID_map[items[0].row()].affine = affine
 
+    @Slot()
     def _on_affine_value_changed(self) -> None:
         """Update the affine transformations in the configuration map."""
         affine = self._affine_table.value()
@@ -301,6 +307,7 @@ class PixelConfigurationWidget(QWidget):
             return
         self._resID_map[items[0].row()].affine = affine
 
+    @Slot()
     def _on_px_table_value_changed(self) -> None:
         """Update the data of the pixel table when the value changes."""
         # if the table is empty clear the configuration map and unchecked all rows
@@ -330,6 +337,7 @@ class PixelConfigurationWidget(QWidget):
                 for new_key, old_key in enumerate(self._resID_map)
             }
 
+    @Slot(QModelIndex, int, int)
     def _on_rows_inserted(self, parent: Any, start: int, end: int) -> None:
         """Set the data of a newly inserted resolutionID in the _px_table."""
         # "end" is the last row inserted.
@@ -395,6 +403,7 @@ class PixelConfigurationWidget(QWidget):
                 properties, key=lambda x: x.device_name
             )
 
+    @Slot()
     def _on_apply(self) -> None:
         """Update the current pixel size configurations."""
         # check if there are errors in the pixel configurations
@@ -671,6 +680,7 @@ class _PropertySelector(QWidget):
 
     # -------------- Private API --------------
 
+    @Slot()
     def _update_filter(self) -> None:
         filt = self._filter_text.text().lower()
         self._prop_table.filterDevices(
@@ -680,6 +690,7 @@ class _PropertySelector(QWidget):
             include_pre_init=self._device_filters.showPreInitProps(),
         )
 
+    @Slot()
     def _on_item_changed(self) -> None:
         """Add [(device, property, value), ...] to the _PropertyValueViewer.
 
@@ -710,6 +721,10 @@ class _PropertySelector(QWidget):
 
         self.valueChanged.emit(self.value())
 
+    @Slot(int)
+    @Slot(float)
+    @Slot(str)
+    @Slot(object)
     def _update_property_table(self, value: Any) -> None:
         """Update the value of the PropertyWidget in the DevicePropertyTable.
 
