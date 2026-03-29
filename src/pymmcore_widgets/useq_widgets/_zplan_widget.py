@@ -205,8 +205,22 @@ class ZStackViz(QWidget):
         h = self.height()
         margin_top = 22
         margin_bot = 28
+        margin_right = 10
         track_h = h - margin_top - margin_bot
-        track_x = w / 2
+
+        # Measure label width to determine left margin
+        font = p.font()
+        font.setPixelSize(10)
+        fm = p.fontMetrics()
+        labels = [self._top_label, self._bot_label, self._center_label]
+        max_chars = max((len(t) for t in labels if t), default=0)
+        label_w = fm.horizontalAdvance("8" * max_chars) if max_chars else 0
+        margin_left = max(label_w + 8, 22.0)
+
+        # Center bar and track between left margin and right margin
+        track_x = (margin_left + w - margin_right) / 2
+        bar_x = margin_left
+        bar_w = w - margin_left - margin_right
 
         # Track line
         p.setPen(
@@ -228,19 +242,6 @@ class ZStackViz(QWidget):
         if bar_h < 2:
             p.end()
             return
-
-        # Measure label width to avoid clipping
-        font = p.font()
-        font.setPixelSize(10)
-        fm = p.fontMetrics()
-        labels = [self._top_label, self._bot_label, self._center_label]
-        label_w = max((fm.horizontalAdvance(t) for t in labels if t), default=0)
-        # Snap to 10px steps to avoid jiggling
-        step = 10
-        label_margin = ((label_w + 8) // step + 1) * step
-
-        bar_x = max(label_margin, 22.0)
-        bar_w = w - bar_x - 10.0
 
         # Outer glow rect
         outer = QRectF(bar_x, bar_y, bar_w, bar_h)
