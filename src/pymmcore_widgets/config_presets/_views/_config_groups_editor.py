@@ -675,39 +675,55 @@ class ConfigGroupsEditor(QWidget):
             event.accept()
             return
 
-        msg = QMessageBox(self)
-        msg.setWindowTitle("Unsaved Changes")
-        msg.setText("You have changes that have not been applied to the core.")
-        msg.setInformativeText("What would you like to do?")
-        msg.setIcon(QMessageBox.Icon.Warning)
+        dlg = QDialog(self)
+        dlg.setWindowTitle("Unsaved Changes")
 
-        discard_btn = msg.addButton("Discard", QMessageBox.ButtonRole.DestructiveRole)
-        cancel_btn = msg.addButton(QMessageBox.StandardButton.Cancel)
+        label = QLabel(
+            "You have changes that have not been applied to the core.\n"
+            "What would you like to do?"
+        )
 
-        if self._core is not None:
-            apply_btn = msg.addButton("Apply", QMessageBox.ButtonRole.AcceptRole)
-            apply_save_btn = msg.addButton(
-                "Apply and Save", QMessageBox.ButtonRole.AcceptRole
-            )
-        else:
-            apply_btn = None
-            apply_save_btn = None
+        discard_btn = QPushButton("Discard")
+        apply_btn = QPushButton("Apply") if self._core is not None else None
+        apply_save_btn = (
+            QPushButton("Apply and Save") if self._core is not None else None
+        )
 
-        msg.setDefaultButton(cancel_btn)
-        msg.exec()
+        btn_row = QHBoxLayout()
+        btn_row.setContentsMargins(0, 0, 0, 0)
+        btn_row.setSpacing(7)
+        btn_row.addStretch()
+        if apply_btn:
+            btn_row.addWidget(apply_btn)
+        if apply_save_btn:
+            btn_row.addWidget(apply_save_btn)
+        btn_row.addWidget(discard_btn)
 
-        clicked = msg.clickedButton()
-        if clicked is discard_btn:
-            event.accept()
-        elif clicked is apply_btn:
+        lay = QVBoxLayout(dlg)
+        lay.addWidget(label)
+        lay.addLayout(btn_row)
+
+        choice: str | None = None
+
+        def _set(val: str) -> None:
+            nonlocal choice
+            choice = val
+            dlg.accept()
+
+        discard_btn.clicked.connect(dlg.accept)
+        if apply_btn:
+            apply_btn.clicked.connect(lambda: _set("apply"))
+        if apply_save_btn:
+            apply_save_btn.clicked.connect(lambda: _set("apply_save"))
+
+        dlg.exec()
+
+        if choice == "apply":
             self._do_apply()
-            event.accept()
-        elif clicked is apply_save_btn:
+        elif choice == "apply_save":
             self._do_apply()
             self._save_to_file()
-            event.accept()
-        else:  # Cancel or dialog closed via X
-            event.ignore()
+        event.accept()
 
     def _apply_to_core(self) -> None:
         """Apply the current editor configuration to the core."""
