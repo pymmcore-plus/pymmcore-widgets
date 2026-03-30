@@ -7,7 +7,7 @@ from pymmcore_plus import CMMCorePlus, DeviceType
 from ._py_config_model import ConfigGroup, ConfigPreset, Device, DevicePropertySetting
 
 if TYPE_CHECKING:
-    from collections.abc import Container, Iterable
+    from collections.abc import Container, Iterable, Sequence
 
 
 # ----------------------------------
@@ -81,6 +81,50 @@ def get_property_info(core: CMMCorePlus, device_label: str, property_name: str) 
         "sequence_max_length": max_len,
         "limits": limits,
     }
+
+
+def set_config_groups(core: CMMCorePlus, groups: Sequence[ConfigGroup]) -> None:
+    """Replace all config groups in the core with the given groups.
+
+    Deletes every existing config group, then re-defines each group/preset/setting.
+    Signals are blocked during bulk definition and a single ``configDefined`` is
+    emitted per group.  The channel group designation is restored afterwards.
+    """
+    from pymmcore_widgets._util import block_core
+
+    for group_name in core.getAvailableConfigGroups():
+        core.deleteConfigGroup(group_name)
+
+    for group in groups:
+        with block_core(core.events):
+            if not group.presets:
+                core.defineConfigGroup(group.name)
+            for preset in group.presets.values():
+                for setting in preset.settings:
+                    core.defineConfig(
+                        group.name,
+                        preset.name,
+                        setting.device_label,
+                        setting.property_name,
+                        setting.value,
+                    )
+        # Emit once per group so listeners can react without being flooded.
+        if group.presets:
+            last_preset = next(reversed(group.presets.values()))
+            if last_preset.settings:
+                s = last_preset.settings[-1]
+                core.events.configDefined.emit(
+                    group.name,
+                    last_preset.name,
+                    s.device_label,
+                    s.property_name,
+                    s.value,
+                )
+
+    for group in groups:
+        if group.is_channel_group:
+            core.setChannelGroup(group.name)
+            break
 
 
 def get_loaded_devices(core: CMMCorePlus) -> Iterable[Device]:

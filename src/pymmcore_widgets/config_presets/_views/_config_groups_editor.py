@@ -17,7 +17,9 @@ from qtpy.QtWidgets import (
     QDialogButtonBox,
     QGroupBox,
     QHBoxLayout,
+    QLabel,
     QMessageBox,
+    QPushButton,
     QRadioButton,
     QSizePolicy,
     QSplitter,
@@ -74,6 +76,7 @@ class ConfigGroupsEditor(QWidget):
     """Widget composed of two QListViews backed by a single tree model."""
 
     configChanged = Signal()
+    applyRequested = Signal(list)  # list[ConfigGroup]
 
     @classmethod
     def create_from_core(
@@ -130,6 +133,8 @@ class ConfigGroupsEditor(QWidget):
         self._undo_stack = QUndoStack(self)
         self._syncing_selection = False
         self._prev_undo_index = 0
+        self._dirty_icon = QIconifyIcon("mdi:alert-circle-outline", color="orange")
+        self._clean_icon = QIconifyIcon("mdi:check-circle-outline", color="green")
 
         # widgets -------------------------------------------------------------
 
@@ -179,11 +184,26 @@ class ConfigGroupsEditor(QWidget):
         main.addWidget(groups_presets)
         main.addWidget(table_group)
 
+        # Bottom bar: status indicator (left) + Apply button (right)
+        self._status_icon = QLabel(self)
+        self._status_label = QLabel(self)
+        self._apply_btn = QPushButton("Apply", self)
+        self._apply_btn.setEnabled(False)
+
+        bottom_bar = QHBoxLayout()
+        bottom_bar.setContentsMargins(5, 5, 5, 5)
+        bottom_bar.setSpacing(5)
+        bottom_bar.addStretch()
+        bottom_bar.addWidget(self._status_icon)
+        bottom_bar.addWidget(self._status_label)
+        bottom_bar.addWidget(self._apply_btn)
+
         layout = QVBoxLayout(self)
         layout.setContentsMargins(8, 8, 8, 8)
         layout.setSpacing(0)
         layout.addWidget(self._tb)
         layout.addWidget(main)
+        layout.addLayout(bottom_bar)
 
         # signals ------------------------------------------------------------
 
@@ -204,6 +224,10 @@ class ConfigGroupsEditor(QWidget):
         # Transpose replaces the model (and selection model), so reconnect
         if act := self._preset_table.transpose_action:
             act.triggered.connect(self._connect_table_selection)
+
+        self._undo_stack.cleanChanged.connect(self._update_status_indicator)
+        self._apply_btn.clicked.connect(self._emit_apply_requested)
+        self._update_status_indicator()
 
     # ------------------------------------------------------------------
     # Public API
@@ -238,11 +262,20 @@ class ConfigGroupsEditor(QWidget):
             self._group_preset_sel.clearSelection()
             # Ensure "add preset" action is disabled when no groups exist
             self._tb.add_preset_action.setEnabled(False)
+        self._undo_stack.clear()  # marks stack as clean, clears history
         self.configChanged.emit()
 
     def data(self) -> Sequence[ConfigGroup]:
         """Return the current configuration data as a list of ConfigGroup."""
         return self._model.get_groups()
+
+    def isClean(self) -> bool:
+        """Return True if the editor has no unapplied changes."""
+        return self._undo_stack.isClean()  # type: ignore[no-any-return]
+
+    def setClean(self) -> None:
+        """Mark the current state as the clean (saved) baseline."""
+        self._undo_stack.setClean()
 
     def undoStack(self) -> QUndoStack:
         """Return the undo stack for this editor."""
@@ -581,6 +614,26 @@ class ConfigGroupsEditor(QWidget):
             self._group_preset_sel.group_list.setCurrentIndex(parent)
             self._group_preset_sel.preset_list.setCurrentIndex(index)
             tree.expand(parent)
+
+    # ------------------------------------------------------------------
+    # Dirty state indicator
+    # ------------------------------------------------------------------
+
+    def _update_status_indicator(self, clean: bool | None = None) -> None:
+        """Update the status bar to reflect the undo stack's clean state."""
+        if clean is None:
+            clean = self._undo_stack.isClean()
+        if clean:
+            self._status_icon.setPixmap(self._clean_icon.pixmap(16, 16))
+            self._status_label.setText("No changes")
+            self._apply_btn.setEnabled(False)
+        else:
+            self._status_icon.setPixmap(self._dirty_icon.pixmap(16, 16))
+            self._status_label.setText("Unsaved changes")
+            self._apply_btn.setEnabled(True)
+
+    def _emit_apply_requested(self) -> None:
+        self.applyRequested.emit(list(self.data()))
 
     # ------------------------------------------------------------------
     # Layout management

@@ -8,7 +8,7 @@ from unittest.mock import patch
 import pytest
 from pymmcore_plus import CMMCorePlus
 from qtpy.QtCore import Qt
-from qtpy.QtWidgets import QFileDialog
+from qtpy.QtWidgets import QDialog, QFileDialog, QMessageBox
 
 from pymmcore_widgets.config_presets._group_preset_widget import (
     AddGroupWidget,
@@ -312,3 +312,111 @@ def test_save_cfg(global_mmcore: CMMCorePlus, qtbot: QtBot):
 
             gp._save_cfg()
             assert (Path(tmp) / "test.cfg").exists()
+
+
+def test_open_config_groups_editor(
+    global_mmcore: CMMCorePlus,
+    qtbot: QtBot,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Edit Groups button opens the ConfigGroupsEditor dialog."""
+    gp = GroupPresetTableWidget(mmcore=global_mmcore)
+    qtbot.addWidget(gp)
+
+    # Make exec() non-blocking: just close the dialog immediately
+    monkeypatch.setattr(QDialog, "exec", lambda self: self.close())
+
+    gp._open_config_groups_editor()
+
+
+def test_apply_editor_updates_core(
+    global_mmcore: CMMCorePlus,
+    qtbot: QtBot,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Applying from the editor dialog writes changes back to the core."""
+
+    gp = GroupPresetTableWidget(mmcore=global_mmcore)
+    qtbot.addWidget(gp)
+
+    original_count = len(global_mmcore.getAvailableConfigGroups())
+    applied_groups: list[object] = []
+
+    # Intercept exec to: add a group, click apply, then close
+    def mock_exec(dlg_self: QDialog) -> None:
+        from pymmcore_widgets import ConfigGroupsEditor
+
+        editor = dlg_self.findChild(ConfigGroupsEditor)
+        assert editor is not None
+        editor._add_group()
+        assert not editor.isClean()
+        editor._apply_btn.click()
+        applied_groups.append(True)
+        # Editor should be clean after apply callback ran
+        assert editor.isClean()
+
+    monkeypatch.setattr(QDialog, "exec", mock_exec)
+    gp._open_config_groups_editor()
+
+    assert applied_groups  # confirm apply ran
+    assert len(global_mmcore.getAvailableConfigGroups()) == original_count + 1
+
+
+def test_close_dirty_editor_applies(
+    global_mmcore: CMMCorePlus,
+    qtbot: QtBot,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Closing editor dialog with dirty state and clicking Yes applies changes."""
+    gp = GroupPresetTableWidget(mmcore=global_mmcore)
+    qtbot.addWidget(gp)
+    original_count = len(global_mmcore.getAvailableConfigGroups())
+
+    # Answer "Yes" to the "apply changes?" dialog
+    monkeypatch.setattr(
+        QMessageBox, "question", lambda *a, **k: QMessageBox.StandardButton.Yes
+    )
+
+    def mock_exec(dlg_self: QDialog) -> None:
+        from pymmcore_widgets import ConfigGroupsEditor
+
+        editor = dlg_self.findChild(ConfigGroupsEditor)
+        assert editor is not None
+        editor._add_group()
+        assert not editor.isClean()
+        # Close the dialog — should trigger the "apply?" prompt
+        dlg_self.close()
+
+    monkeypatch.setattr(QDialog, "exec", mock_exec)
+    gp._open_config_groups_editor()
+
+    assert len(global_mmcore.getAvailableConfigGroups()) == original_count + 1
+
+
+def test_close_dirty_editor_discards(
+    global_mmcore: CMMCorePlus,
+    qtbot: QtBot,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Closing editor dialog with dirty state and clicking No discards changes."""
+    gp = GroupPresetTableWidget(mmcore=global_mmcore)
+    qtbot.addWidget(gp)
+    original_count = len(global_mmcore.getAvailableConfigGroups())
+
+    monkeypatch.setattr(
+        QMessageBox, "question", lambda *a, **k: QMessageBox.StandardButton.No
+    )
+
+    def mock_exec(dlg_self: QDialog) -> None:
+        from pymmcore_widgets import ConfigGroupsEditor
+
+        editor = dlg_self.findChild(ConfigGroupsEditor)
+        assert editor is not None
+        editor._add_group()
+        dlg_self.close()
+
+    monkeypatch.setattr(QDialog, "exec", mock_exec)
+    gp._open_config_groups_editor()
+
+    # No changes applied
+    assert len(global_mmcore.getAvailableConfigGroups()) == original_count
