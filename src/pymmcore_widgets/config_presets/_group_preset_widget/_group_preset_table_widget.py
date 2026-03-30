@@ -178,8 +178,12 @@ class GroupPresetTableWidget(QWidget):
 
         mmc = self._mmc
 
-        def _apply(groups: list[ConfigGroup]) -> None:
-            set_config_groups(mmc, groups)
+        def _apply(
+            groups: list[ConfigGroup], deleted: list[str], channel: str | None
+        ) -> None:
+            set_config_groups(
+                mmc, groups, deleted_groups=deleted, channel_group=channel
+            )
             editor.setClean()
 
         editor = ConfigGroupsEditor.create_from_core(mmc)
@@ -223,6 +227,7 @@ class _ConfigEditorDialog(QDialog):
         self.setWindowTitle("Edit Groups and Presets")
         self._editor = editor
         layout = QVBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
         layout.addWidget(editor)
 
     def reject(self) -> None:
@@ -231,7 +236,7 @@ class _ConfigEditorDialog(QDialog):
     def closeEvent(self, event: QCloseEvent) -> None:
         if not self._editor.isClean():
             result = QMessageBox.question(
-                self,
+                self._editor,
                 "Unsaved Changes",
                 "You have unsaved changes. Would you like to apply them?",
                 QMessageBox.StandardButton.Yes
@@ -240,7 +245,7 @@ class _ConfigEditorDialog(QDialog):
                 QMessageBox.StandardButton.Yes,
             )
             if result == QMessageBox.StandardButton.Yes:
-                self._editor.applyRequested.emit(list(self._editor.data()))
+                self._editor._emit_apply_requested()
             elif result == QMessageBox.StandardButton.Cancel:
                 event.ignore()
                 return

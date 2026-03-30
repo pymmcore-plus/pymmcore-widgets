@@ -4,6 +4,8 @@ from typing import TYPE_CHECKING
 
 from pymmcore_plus import CMMCorePlus, DeviceType
 
+from pymmcore_widgets._util import block_core
+
 from ._py_config_model import ConfigGroup, ConfigPreset, Device, DevicePropertySetting
 
 if TYPE_CHECKING:
@@ -83,20 +85,47 @@ def get_property_info(core: CMMCorePlus, device_label: str, property_name: str) 
     }
 
 
-def set_config_groups(core: CMMCorePlus, groups: Sequence[ConfigGroup]) -> None:
-    """Replace all config groups in the core with the given groups.
+def set_config_groups(
+    core: CMMCorePlus,
+    groups: Sequence[ConfigGroup],
+    *,
+    deleted_groups: Sequence[str] | None = None,
+    channel_group: str | None = None,
+) -> None:
+    """Update config groups in the core.
 
-    Deletes every existing config group, then re-defines each group/preset/setting.
-    Signals are blocked during bulk definition and a single ``configDefined`` is
-    emitted per group.  The channel group designation is restored afterwards.
+    Parameters
+    ----------
+    core : CMMCorePlus
+        The core instance to update.
+    groups : Sequence[ConfigGroup]
+        Groups to create or update in the core. If a group with the same name
+        already exists, it is deleted and recreated.
+    deleted_groups : Sequence[str] | None
+        If provided, only these group names are deleted from the core
+        (incremental mode). If None (default), all existing groups not present
+        in *groups* are deleted (full-replacement mode).
+    channel_group : str | None
+        If provided, set this group as the channel group after applying changes.
+        If None and *deleted_groups* is also None (full-replacement mode), the
+        channel group is inferred from the ``is_channel_group`` flag on groups.
     """
-    from pymmcore_widgets._util import block_core
+    if deleted_groups is None:
+        desired_names = {g.name for g in groups}
+        names_to_delete: list[str] = [
+            n for n in core.getAvailableConfigGroups() if n not in desired_names
+        ]
+    else:
+        names_to_delete = list(deleted_groups)
 
-    for group_name in core.getAvailableConfigGroups():
-        core.deleteConfigGroup(group_name)
+    with block_core(core.events):
+        for name in names_to_delete:
+            core.deleteConfigGroup(name)
 
-    for group in groups:
-        with block_core(core.events):
+        existing = set(core.getAvailableConfigGroups())
+        for group in groups:
+            if group.name in existing:
+                core.deleteConfigGroup(group.name)
             if not group.presets:
                 core.defineConfigGroup(group.name)
             for preset in group.presets.values():
@@ -108,7 +137,11 @@ def set_config_groups(core: CMMCorePlus, groups: Sequence[ConfigGroup]) -> None:
                         setting.property_name,
                         setting.value,
                     )
-        # Emit once per group so listeners can react without being flooded.
+
+    for name in names_to_delete:
+        core.events.configGroupDeleted.emit(name)
+
+    for group in groups:
         if group.presets:
             last_preset = next(reversed(group.presets.values()))
             if last_preset.settings:
@@ -121,10 +154,15 @@ def set_config_groups(core: CMMCorePlus, groups: Sequence[ConfigGroup]) -> None:
                     s.value,
                 )
 
-    for group in groups:
-        if group.is_channel_group:
-            core.setChannelGroup(group.name)
-            break
+    # Set channel group: explicit parameter takes priority, then fall back to
+    # scanning the is_channel_group flag (full-replacement mode only).
+    if channel_group is not None:
+        core.setChannelGroup(channel_group)
+    elif deleted_groups is None:
+        for group in groups:
+            if group.is_channel_group:
+                core.setChannelGroup(group.name)
+                break
 
 
 def get_loaded_devices(core: CMMCorePlus) -> Iterable[Device]:

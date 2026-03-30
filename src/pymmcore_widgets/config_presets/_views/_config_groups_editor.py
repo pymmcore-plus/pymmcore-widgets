@@ -76,7 +76,9 @@ class ConfigGroupsEditor(QWidget):
     """Widget composed of two QListViews backed by a single tree model."""
 
     configChanged = Signal()
-    applyRequested = Signal(list)  # list[ConfigGroup]
+    applyRequested = Signal(
+        list, list, object
+    )  # list[ConfigGroup], list[str], str|None
 
     @classmethod
     def create_from_core(
@@ -131,6 +133,7 @@ class ConfigGroupsEditor(QWidget):
         self._loaded_devices = ()
         self._model = QConfigGroupsModel()
         self._undo_stack = QUndoStack(self)
+        self._clean_groups: dict[str, ConfigGroup] = {}
         self._syncing_selection = False
         self._prev_undo_index = 0
         self._dirty_icon = QIconifyIcon("mdi:alert-circle-outline", color="orange")
@@ -263,6 +266,7 @@ class ConfigGroupsEditor(QWidget):
             # Ensure "add preset" action is disabled when no groups exist
             self._tb.add_preset_action.setEnabled(False)
         self._undo_stack.clear()  # marks stack as clean, clears history
+        self._clean_groups = {g.name: g for g in self._model.get_groups()}
         self.configChanged.emit()
 
     def data(self) -> Sequence[ConfigGroup]:
@@ -276,6 +280,7 @@ class ConfigGroupsEditor(QWidget):
     def setClean(self) -> None:
         """Mark the current state as the clean (saved) baseline."""
         self._undo_stack.setClean()
+        self._clean_groups = {g.name: g for g in self._model.get_groups()}
 
     def undoStack(self) -> QUndoStack:
         """Return the undo stack for this editor."""
@@ -632,8 +637,43 @@ class ConfigGroupsEditor(QWidget):
             self._status_label.setText("Unsaved changes")
             self._apply_btn.setEnabled(True)
 
+    def dirtyGroups(self) -> tuple[list[ConfigGroup], list[str], str | None]:
+        """Return groups that changed, deleted names, and desired channel group.
+
+        Compares only preset content (not the ``is_channel_group`` flag).
+        The channel group designation is returned separately so the consumer
+        can call ``setChannelGroup`` without needlessly recreating groups.
+
+        Returns
+        -------
+        tuple[list[ConfigGroup], list[str], str | None]
+            (changed_or_new_groups, deleted_group_names, channel_group_name).
+            *channel_group_name* is the name of the group that should be the
+            channel group, or None if the designation did not change.
+        """
+        current = {g.name: g for g in self.data()}
+        deleted = [name for name in self._clean_groups if name not in current]
+        changed = []
+        for name, group in current.items():
+            if name not in self._clean_groups:
+                changed.append(group)
+            else:
+                clean = self._clean_groups[name]
+                if group.presets != clean.presets:
+                    changed.append(group)
+
+        # Determine channel group change
+        old_channel = next(
+            (n for n, g in self._clean_groups.items() if g.is_channel_group), None
+        )
+        new_channel = next((n for n, g in current.items() if g.is_channel_group), None)
+        channel_group = new_channel if new_channel != old_channel else None
+
+        return changed, deleted, channel_group
+
     def _emit_apply_requested(self) -> None:
-        self.applyRequested.emit(list(self.data()))
+        changed, deleted, channel_group = self.dirtyGroups()
+        self.applyRequested.emit(changed, deleted, channel_group)
 
     # ------------------------------------------------------------------
     # Layout management

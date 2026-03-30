@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
+from unittest.mock import Mock
 
 import pytest
 from qtpy.QtCore import QItemSelectionModel, Qt
@@ -248,10 +249,13 @@ def test_editor_status_indicator_and_apply_requested(
     assert editor._status_label.text() == "Unsaved changes"
     assert editor._apply_btn.isEnabled()
 
-    # Clicking Apply emits applyRequested with current data
+    # Clicking Apply emits applyRequested with (changed, deleted)
     with qtbot.waitSignal(editor.applyRequested) as blocker:
         editor._apply_btn.click()
-    assert len(blocker.args[0]) > 0  # emits list[ConfigGroup]
+    changed, deleted, channel = blocker.args
+    assert len(changed) > 0  # at least the new group
+    assert isinstance(deleted, list)
+    assert channel is None  # adding a group doesn't change channel designation
 
     # Undo reverts to clean
     editor.undoStack().undo()
@@ -320,6 +324,169 @@ def test_set_config_groups_emits_signals(global_mmcore: CMMCorePlus) -> None:
         g for g in groups if any(s for p in g.presets.values() for s in p.settings)
     ]
     assert len(defined) == len(groups_with_settings)
+
+
+def test_editor_dirty_groups(editor: ConfigGroupsEditor) -> None:
+    """dirtyGroups returns only changed/new groups and deleted group names."""
+    # Initially clean
+    changed, deleted, channel = editor.dirtyGroups()
+    assert changed == []
+    assert deleted == []
+    assert channel is None
+
+    # Add a group → it appears in changed
+    editor._add_group()
+    changed, deleted, channel = editor.dirtyGroups()
+    assert len(changed) == 1
+    assert deleted == []
+    assert channel is None
+
+    # setClean resets the baseline
+    editor.setClean()
+    changed, deleted, channel = editor.dirtyGroups()
+    assert changed == []
+    assert deleted == []
+    assert channel is None
+
+
+def test_editor_dirty_groups_channel_only(editor: ConfigGroupsEditor) -> None:
+    """Changing only the channel group doesn't put groups in changed list."""
+    # Set a different group as channel group
+    editor.setCurrentGroup("Camera")
+    editor._tb.set_channel_action.trigger()
+
+    changed, deleted, channel = editor.dirtyGroups()
+    assert changed == []
+    assert deleted == []
+    assert channel == "Camera"
+
+
+def test_set_config_groups_incremental(global_mmcore: CMMCorePlus) -> None:
+    """set_config_groups with deleted_groups only touches specified groups."""
+    original_groups = list(get_config_groups(global_mmcore))
+    original_names = {g.name for g in original_groups}
+
+    # Add a new group, delete an existing one
+    new_group = original_groups[0].model_copy(
+        update={"name": "TestNewGroup", "is_channel_group": False}
+    )
+    deleted_name = original_groups[1].name
+
+    set_config_groups(global_mmcore, [new_group], deleted_groups=[deleted_name])
+
+    core_names = set(global_mmcore.getAvailableConfigGroups())
+    assert "TestNewGroup" in core_names
+    assert deleted_name not in core_names
+    # Untouched groups should still exist
+    untouched = original_names - {original_groups[0].name, deleted_name}
+    assert untouched <= core_names
+
+    # Restore
+    set_config_groups(global_mmcore, original_groups)
+    assert set(global_mmcore.getAvailableConfigGroups()) == original_names
+
+
+def test_config_group_channel_group_changed_signals(
+    editor: ConfigGroupsEditor, global_mmcore: CMMCorePlus, qtbot: QtBot
+) -> None:
+    """Changing only the channel group emits channelGroupChanged, not configDefined."""
+    mmc = global_mmcore
+
+    @editor.applyRequested.connect
+    def _apply(groups: list, deleted: list[str], channel: str | None) -> None:
+        set_config_groups(mmc, groups, deleted_groups=deleted, channel_group=channel)
+        editor.setClean()
+
+    # "Camera" exists but is not the channel group — set it as channel
+    DEV = "Camera"
+    assert mmc.getChannelGroup() != DEV
+    editor._group_preset_sel.setCurrentGroup(DEV)
+    editor._tb.set_channel_action.trigger()
+
+    defined = Mock()
+    channel_changed = Mock()
+    mmc.events.configDefined.connect(defined)
+    mmc.events.channelGroupChanged.connect(channel_changed)
+
+    with qtbot.waitSignal(mmc.events.channelGroupChanged):
+        editor._apply_btn.click()
+
+    assert mmc.getChannelGroup() == DEV
+    channel_changed.assert_called_with(DEV)
+    defined.assert_not_called()
+
+
+def test_config_group_preset_removed_signals(
+    editor: ConfigGroupsEditor,
+    global_mmcore: CMMCorePlus,
+    qtbot: QtBot,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Removing a preset emits configDefined for that group only."""
+    mmc = global_mmcore
+
+    @editor.applyRequested.connect
+    def _apply(groups: list, deleted: list[str], channel: str | None) -> None:
+        set_config_groups(mmc, groups, deleted_groups=deleted, channel_group=channel)
+        editor.setClean()
+
+    monkeypatch.setattr(
+        QMessageBox, "question", lambda *a, **k: QMessageBox.StandardButton.Yes
+    )
+
+    # Remove HighRes preset from Camera
+    editor.setCurrentPreset("Camera", "HighRes")
+    editor._group_preset_sel.preset_list.setFocus()
+    editor._remove_selected()
+
+    defined = Mock()
+    group_deleted = Mock()
+    channel_changed = Mock()
+    mmc.events.configDefined.connect(defined)
+    mmc.events.configGroupDeleted.connect(group_deleted)
+    mmc.events.channelGroupChanged.connect(channel_changed)
+
+    with qtbot.waitSignal(mmc.events.configDefined):
+        editor._apply_btn.click()
+
+    defined.assert_called_once()
+    assert defined.call_args[0][0] == "Camera"
+    group_deleted.assert_not_called()
+    channel_changed.assert_not_called()
+
+
+def test_config_group_added_signals(
+    editor: ConfigGroupsEditor, global_mmcore: CMMCorePlus, qtbot: QtBot
+) -> None:
+    """Adding a new group with presets emits configDefined for that group only."""
+    mmc = global_mmcore
+
+    @editor.applyRequested.connect
+    def _apply(groups: list, deleted: list[str], channel: str | None) -> None:
+        set_config_groups(mmc, groups, deleted_groups=deleted, channel_group=channel)
+        editor.setClean()
+
+    # Duplicate "Camera" so the new group has presets with settings
+    editor.setCurrentGroup("Camera")
+    editor._group_preset_sel.group_list.setFocus()
+    editor._duplicate_selected()
+    new_group_name = "Camera copy"
+
+    defined = Mock()
+    group_deleted = Mock()
+    channel_changed = Mock()
+    mmc.events.configDefined.connect(defined)
+    mmc.events.configGroupDeleted.connect(group_deleted)
+    mmc.events.channelGroupChanged.connect(channel_changed)
+
+    with qtbot.waitSignal(mmc.events.configDefined):
+        editor._apply_btn.click()
+
+    defined.assert_called_once()
+    assert defined.call_args[0][0] == new_group_name
+    group_deleted.assert_not_called()
+    channel_changed.assert_not_called()
+    assert new_group_name in mmc.getAvailableConfigGroups()
 
 
 def test_config_groups_help_dialog(qtbot: QtBot) -> None:
