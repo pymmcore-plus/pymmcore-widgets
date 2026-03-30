@@ -23,6 +23,7 @@ from qtpy.QtGui import (
 )
 from qtpy.QtWidgets import (
     QApplication,
+    QCheckBox,
     QHBoxLayout,
     QPlainTextEdit,
     QPushButton,
@@ -136,6 +137,13 @@ class CoreLogWidget(QWidget):
             QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum
         )
 
+        self._debug_box = QCheckBox("Debug Logging")
+        self._debug_box.setToolTip("Enables debug logging within the core.")
+        # NOTE: At the time of writing, there is no mechanism that will notify us
+        # when debug logging is enabled/disabled from outside this widget.
+        # This is a known limitation that might not be worth addressing.
+        self._debug_box.setChecked(self._mmcore.debugLogEnabled())
+
         self._clear_btn = QPushButton("Clear Display")
         self._clear_btn.setToolTip(
             "Clears this view. Does not delete lines from the log file."
@@ -178,6 +186,7 @@ class CoreLogWidget(QWidget):
         file_layout = QHBoxLayout()
         file_layout.setContentsMargins(5, 5, 5, 0)
         file_layout.addWidget(self._log_path)
+        file_layout.addWidget(self._debug_box)
         file_layout.addWidget(self._clear_btn)
         file_layout.addWidget(self._log_btn)
 
@@ -188,6 +197,7 @@ class CoreLogWidget(QWidget):
 
         # --- Connections ---
         self._reader.new_lines.connect(self._append_line)
+        self._debug_box.toggled.connect(self._mmcore.enableDebugLog)
         self._clear_btn.clicked.connect(self.clear)
         self._log_btn.clicked.connect(self._open_native)
         self._reader.start()
