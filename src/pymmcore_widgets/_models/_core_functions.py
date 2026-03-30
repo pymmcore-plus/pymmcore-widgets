@@ -120,6 +120,7 @@ def set_config_groups(
 
     with block_core(core.events):
         for name in names_to_delete:
+            print("Deleting config group:", name)
             core.deleteConfigGroup(name)
 
         existing = set(core.getAvailableConfigGroups())
@@ -138,6 +139,10 @@ def set_config_groups(
                         setting.value,
                     )
 
+    # NOTE:
+    # I dislike that we're manually emitting signals here, but short of a
+    # coalescing mechanism in the core itself, this is the best we can do to
+    # minimize extraneous signals
     for name in names_to_delete:
         core.events.configGroupDeleted.emit(name)
 
