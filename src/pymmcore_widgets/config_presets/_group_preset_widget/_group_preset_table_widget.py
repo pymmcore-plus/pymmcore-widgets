@@ -58,16 +58,16 @@ class GroupPresetTableWidget(QWidget):
 
     Shows a table of config groups with their current preset values.
     Provides an "Edit Groups and Presets" button that opens a
-    ``ConfigGroupsEditor`` dialog for editing.
+    `ConfigGroupsEditor` dialog for editing.
 
     Parameters
     ----------
     parent : QWidget | None
         Optional parent widget. By default, None.
     mmcore : CMMCorePlus | None
-        Optional ``CMMCorePlus`` micromanager core.
+        Optional `CMMCorePlus` micromanager core.
         By default, None. If not specified, the widget will use the active
-        (or create a new) ``CMMCorePlus.instance()``.
+        (or create a new) `CMMCorePlus.instance()`.
     """
 
     def __init__(
