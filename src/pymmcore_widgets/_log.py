@@ -20,6 +20,7 @@ from qtpy.QtGui import (
     QCloseEvent,
     QColor,
     QDesktopServices,
+    QFont,
     QFontDatabase,
     QPalette,
     QSyntaxHighlighter,
@@ -44,16 +45,23 @@ if TYPE_CHECKING:
     from io import TextIOWrapper
 
 
-# (regex, foreground color) — checked in order, first match wins
-_LEVEL_RULES: list[tuple[re.Pattern[str], str]] = [
-    (re.compile(r"\berr(?:or)?\b|\[err", re.IGNORECASE), "#e55555"),
-    (re.compile(r"\bwarn(?:ing)?\b|\[wrn", re.IGNORECASE), "#ddaa55"),
-    (re.compile(r"\bdebug\b|\[dbg", re.IGNORECASE), "#A2A2A2"),
-]
+# Theme-adaptive color palettes (dark_bg, light_bg)
+_CLR_ERROR = ("#F44747", "#CD3131")
+_CLR_WARNING = ("#CD9731", "#BF8803")
+_CLR_DEBUG = ("#808080", "#9A9A9A")
+_CLR_TIMESTAMP = ("#5F8787", "#4E7A7A")
+_CLR_THREAD = ("#6A6A6A", "#858585")
 
+# Subtle background tint alpha for error lines
+_ERROR_BG_ALPHA = 25
+
+# Regexes for log-level line coloring (first match wins)
+_RE_ERROR = re.compile(r"\berr(?:or)?\b|\[err", re.IGNORECASE)
+_RE_WARNING = re.compile(r"\bwarn(?:ing)?\b|\[wrn", re.IGNORECASE)
+_RE_DEBUG = re.compile(r"\bdebug\b|\[dbg", re.IGNORECASE)
 # MMCore log prefix: "2026-03-30T17:36:38.454177 tid0x20517b100 ..."
-_TIMESTAMP_RE = re.compile(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d+")
-_THREAD_RE = re.compile(r"\btid\S+")
+_RE_TIMESTAMP = re.compile(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d+")
+_RE_THREAD = re.compile(r"\btid\S+")
 
 # Log level ordering for the minimum-level filter
 DEBUG, INFO, WARNING, ERROR = 0, 1, 2, 3
@@ -74,26 +82,49 @@ def _line_level(line: str) -> int:
     return INFO
 
 
+def _make_fmt(
+    color_pair: tuple[str, str], dark: bool, *, bold: bool = False
+) -> QTextCharFormat:
+    """Build a QTextCharFormat from a (dark_color, light_color) pair."""
+    fmt = QTextCharFormat()
+    fmt.setForeground(QColor(color_pair[0] if dark else color_pair[1]))
+    if bold:
+        fmt.setFontWeight(QFont.Weight.Bold)
+    return fmt
+
+
 class _LogHighlighter(QSyntaxHighlighter):
     """Syntax highlighter for log-level coloring and search-term highlighting."""
 
-    def __init__(self, parent: QTextDocument) -> None:
+    def __init__(self, parent: QTextDocument, dark: bool = False) -> None:
         super().__init__(parent)
         self._search_text: str = ""
         self._search_fmt = QTextCharFormat()
 
-        # Pre-build level formats
-        self._level_rules: list[tuple[re.Pattern[str], QTextCharFormat]] = []
-        for pattern, color in _LEVEL_RULES:
-            fmt = QTextCharFormat()
-            fmt.setForeground(QColor(color))
-            self._level_rules.append((pattern, fmt))
+        # Level formats — ERROR is bold with a subtle background tint
+        self._error_fmt = _make_fmt(_CLR_ERROR, dark, bold=True)
+        err_bg = QColor(_CLR_ERROR[0] if dark else _CLR_ERROR[1])
+        err_bg.setAlpha(_ERROR_BG_ALPHA)
+        self._error_fmt.setBackground(err_bg)
 
-        # Timestamp and thread-id formats
-        self._timestamp_fmt = QTextCharFormat()
-        self._timestamp_fmt.setForeground(QColor("#6A9955"))
-        self._thread_fmt = QTextCharFormat()
-        self._thread_fmt.setForeground(QColor("#808080"))
+        self._warning_fmt = _make_fmt(_CLR_WARNING, dark)
+        self._debug_fmt = _make_fmt(_CLR_DEBUG, dark)
+
+        # Metadata formats (muted, visually recessive)
+        self._timestamp_fmt = _make_fmt(_CLR_TIMESTAMP, dark)
+        self._thread_fmt = _make_fmt(_CLR_THREAD, dark)
+
+        # Level rules: (regex, fmt) — first match wins, colors whole line
+        self._level_rules = [
+            (_RE_ERROR, self._error_fmt),
+            (_RE_WARNING, self._warning_fmt),
+            (_RE_DEBUG, self._debug_fmt),
+        ]
+        # Span rules: (regex, fmt) — all applied, color only the match
+        self._span_rules = [
+            (_RE_TIMESTAMP, self._timestamp_fmt),
+            (_RE_THREAD, self._thread_fmt),
+        ]
 
     def set_search_text(self, text: str) -> None:
         """Update the search term and re-highlight."""
@@ -105,17 +136,19 @@ class _LogHighlighter(QSyntaxHighlighter):
             self.rehighlight()
 
     def highlightBlock(self, text: str) -> None:
-        # Log-level coloring (whole line)
+        # Level coloring (whole line, first match wins) — level color dominates
+        level_matched = False
         for pattern, fmt in self._level_rules:
             if pattern.search(text):
                 self.setFormat(0, len(text), fmt)
+                level_matched = True
                 break
 
-        # Timestamp and thread-id (overlay on top of level color)
-        if m := _TIMESTAMP_RE.match(text):
-            self.setFormat(m.start(), m.end() - m.start(), self._timestamp_fmt)
-        if m := _THREAD_RE.search(text):
-            self.setFormat(m.start(), m.end() - m.start(), self._thread_fmt)
+        # Metadata spans only on neutral (INFO) lines
+        if not level_matched:
+            for pattern, fmt in self._span_rules:
+                if m := pattern.search(text):
+                    self.setFormat(m.start(), m.end() - m.start(), fmt)
 
         # Search-term highlighting
         if self._search_text:
@@ -239,13 +272,13 @@ class CoreLogWidget(QWidget):
         self._debug_box.setToolTip("Enables debug logging within the core.")
         self._debug_box.setChecked(self._mmcore.debugLogEnabled())
 
-        self._clear_btn = QPushButton("Clear Display")
+        self._clear_btn = QPushButton("Clear")
         self._clear_btn.setToolTip(
             "Clears this view. Does not delete lines from the log file."
         )
 
         self._log_btn = QPushButton()
-        color = QApplication.palette().color(QPalette.ColorRole.WindowText).name()
+        color = self.palette().color(QPalette.ColorRole.WindowText).name()
         self._log_btn.setIcon(QIconifyIcon("majesticons:open", color=color))
         self._log_btn.setToolTip("Open log file in native editor")
 
@@ -272,7 +305,9 @@ class CoreLogWidget(QWidget):
         self._log_view.setFont(fixed_font)
 
         # --- Syntax highlighter ---
-        self._highlighter = _LogHighlighter(self._log_view.document())
+        bg = self.palette().color(QPalette.ColorRole.Base)
+        dark = bg.lightnessF() < 0.5
+        self._highlighter = _LogHighlighter(self._log_view.document(), dark=dark)
 
         # --- Debounce timers ---
         self._search_timer = QTimer(self)
@@ -297,20 +332,20 @@ class CoreLogWidget(QWidget):
 
         # --- Layout ---
         file_layout = QHBoxLayout()
-        file_layout.setContentsMargins(5, 5, 5, 0)
+        file_layout.setSpacing(10)
         file_layout.addWidget(self._log_path)
         file_layout.addWidget(self._debug_box)
-        file_layout.addWidget(self._clear_btn)
         file_layout.addWidget(self._log_btn)
 
         search_layout = QHBoxLayout()
-        search_layout.setContentsMargins(5, 0, 5, 0)
         search_layout.addWidget(self._search_input)
         search_layout.addWidget(self._level_combo)
+        search_layout.addWidget(self._clear_btn)
         search_layout.addWidget(self._follow_check)
 
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setContentsMargins(6, 6, 6, 6)
+        layout.setSpacing(0)
         layout.addLayout(file_layout)
         layout.addLayout(search_layout)
         layout.addWidget(self._log_view)
