@@ -46,11 +46,13 @@ if TYPE_CHECKING:
 
 
 # Theme-adaptive color palettes (dark_bg, light_bg)
+# Designed for colorblind accessibility: levels distinguished by luminance + weight,
+# not just hue.  ERROR is bright+bold+bg, WARNING is medium+italic, DEBUG is dim.
 _CLR_ERROR = ("#F44747", "#CD3131")
-_CLR_WARNING = ("#CD9731", "#BF8803")
-_CLR_DEBUG = ("#808080", "#9A9A9A")
+_CLR_WARNING = ("#569CD6", "#1976D2")  # blue — distinct from red in all CVD types
+_CLR_DEBUG = ("#6A6A6A", "#9A9A9A")
 _CLR_TIMESTAMP = ("#5F8787", "#4E7A7A")
-_CLR_THREAD = ("#6A6A6A", "#858585")
+_CLR_THREAD = ("#555555", "#999999")
 
 # Subtle background tint alpha for error lines
 _ERROR_BG_ALPHA = 25
@@ -345,7 +347,7 @@ class CoreLogWidget(QWidget):
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(6, 6, 6, 6)
-        layout.setSpacing(0)
+        layout.setSpacing(2)
         layout.addLayout(file_layout)
         layout.addLayout(search_layout)
         layout.addWidget(self._log_view)
