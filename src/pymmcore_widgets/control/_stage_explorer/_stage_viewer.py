@@ -60,47 +60,15 @@ class StageViewer(QWidget):
 
     # --------------------PUBLIC METHODS--------------------
 
-    def set_hover_label_visible(self, visible: bool) -> None:
-        """Set the visibility of the hover label."""
-        self._show_hover_label = visible
-
     def set_clims(self, clim: tuple[float, float] | None) -> None:
         """Set the color limits of the images in the scene."""
         self._clims = clim
+        value = "auto" if clim is None else clim
         for child in self._get_images():
-            child.clim = "auto" if clim is None else clim
-
-    def set_colormap(self, colormap: cmap.ColormapLike) -> None:
-        """Set the colormap of the images in the scene."""
-        self._cmap = cmap.Colormap(colormap)
-        for child in self._get_images():
-            child.cmap = self._cmap.to_vispy()
+            child.clim = value
 
     def set_grid_visible(self, visible: bool) -> None:
         self._grid_lines.visible = visible
-
-    def global_autoscale(self, *, ignore_min: float = 0, ignore_max: float = 0) -> None:
-        """Set the color limits of all images in the scene to the global min and max.
-
-        Parameters
-        ----------
-        ignore_min : float
-            The fraction of dim values to ignore. Default is 0. Ranges from 0 to 1.
-            Passed to `numpy.quantile`.
-        ignore_max : float
-            The fraction of bright values to ignore. Default is 0. Ranges from 0 to 1.
-            Passed to `numpy.quantile`.
-        """
-        if not (visuals := list(self._get_images())):
-            return
-
-        # NOTE: if this function is to be called more often, we could retain a running
-        # min and max for each image and only update min and max when adding an image.
-        mi, ma = np.quantile(
-            np.concatenate([child._data.flatten() for child in visuals]),
-            (np.clip(ignore_min, 0, 1), np.clip(1 - ignore_max, 0, 1)),
-        )
-        self.set_clims((mi, ma))
 
     def add_image(self, img: np.ndarray, transform: np.ndarray | None = None) -> None:
         """Add an image to the scene with the given transform.
@@ -129,11 +97,14 @@ class StageViewer(QWidget):
                 transform = transform.T
 
         # add the image to the scene with the transform
+        # texture_format="auto" uses GPUScaledTexture2D so that clim changes
+        # only update a shader uniform instead of re-uploading the texture.
         frame = Image(
             img,
             cmap=self._cmap.to_vispy(),
             parent=self.view.scene,
             clim="auto" if self._clims is None else self._clims,
+            texture_format="auto",
         )
         # keep the added image on top of the others
         frame.order = min(child.order for child in self._get_images()) - 1
@@ -141,7 +112,6 @@ class StageViewer(QWidget):
 
     def clear(self) -> None:
         """Clear the scene."""
-        # remove all images from the scene
         for child in reversed(self.view.scene.children):
             if isinstance(child, Image):
                 child.parent = None

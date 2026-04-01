@@ -8,21 +8,24 @@ from typing import TYPE_CHECKING, cast
 import numpy as np
 import useq
 from pymmcore_plus import CMMCorePlus, Keyword
-from qtpy.QtCore import QSize, Qt, QThread, Signal
+from qtpy.QtCore import QSignalBlocker, QSize, Qt, QThread, Signal, Slot
 from qtpy.QtGui import QIcon
 from qtpy.QtWidgets import (
     QDoubleSpinBox,
     QFormLayout,
+    QHBoxLayout,
     QLabel,
     QMenu,
+    QPushButton,
     QSizePolicy,
+    QSpinBox,
     QToolBar,
     QToolButton,
     QVBoxLayout,
     QWidget,
     QWidgetAction,
 )
-from superqt import QEnumComboBox, QIconifyIcon
+from superqt import QEnumComboBox, QIconifyIcon, QLabeledRangeSlider
 from useq import OrderMode
 
 from pymmcore_widgets.control._q_stage_controller import QStageMoveAccumulator
@@ -32,13 +35,9 @@ from ._stage_position_marker import StagePositionMarker
 from ._stage_viewer import StageViewer, get_vispy_scene_bounds
 
 if TYPE_CHECKING:
-    from collections.abc import Iterable
-
     from PyQt6.QtGui import QAction, QActionGroup, QKeyEvent
     from qtpy.QtGui import QCloseEvent
     from vispy.app.canvas import MouseEvent
-
-    from ._stage_viewer import VisualNode
 else:
     from qtpy.QtWidgets import QAction, QActionGroup
 
@@ -104,36 +103,6 @@ class PositionIndicator(str, Enum):
         return self in (self.CENTER, self.BOTH)
 
 
-SS_TOOLBUTTON = """
-    QToolButton:checked {
-        background-color: rgba(51, 170, 51, 180);
-        border: 1px solid rgba(102, 102, 102, 80);
-        border-radius: 5px;
-    }
-    QToolButton:!checked {
-        border: 1px solid rgba(102, 102, 102, 80);
-        border-radius: 5px;
-    }
-    QToolButton:checked:hover {
-        background-color: rgba(51, 170, 51, 180);
-    }
-    QToolButton:!checked:hover {
-        background-color: rgba(102, 102, 102, 80);
-    }
-    QToolButton[popupMode="1"] {
-        padding-right: 8px;
-    }
-    QToolButton::menu-button {
-        border: 3px solid transparent;
-        border-left: 1px solid  rgba(102, 102, 102, 80);
-        width: 8px;
-    }
-    QToolButton::menu-arrow {
-        width: 8px;
-    }
-"""
-
-
 class StageExplorer(QWidget):
     """A stage positions explorer widget.
 
@@ -177,8 +146,8 @@ class StageExplorer(QWidget):
         self._mmc = mmcore or CMMCorePlus.instance()
         self._mmc.events.roiSet.connect(self._on_roi_changed)
 
-        xy_device = self._mmc.getXYStageDevice()
-        self._stage_controller = QStageMoveAccumulator.for_device(xy_device, self._mmc)
+        self._stage_controller: QStageMoveAccumulator | None = None
+        self._set_stage_controller()
 
         self._stage_viewer = StageViewer(self)
         self._stage_viewer.setCursor(Qt.CursorShape.CrossCursor)
@@ -187,22 +156,16 @@ class StageExplorer(QWidget):
         # properties
         self._auto_zoom_to_fit: bool = False
         self._snap_on_double_click: bool = True
-        self._poll_stage_position: bool = True
+        self._poll_stage_position: bool = self._has_devices()
         self._our_mda_running: bool = False
 
         # background thread for polling stage position
         self._stage_poller = _StagePoller(self._mmc)
         self._stage_poller.positionChanged.connect(self._on_stage_position_polled)
 
-        # marker for stage position
-        w, h = self._mmc.getImageWidth(), self._mmc.getImageHeight()
-        self._stage_pos_marker: StagePositionMarker = StagePositionMarker(
-            parent=self._stage_viewer.view.scene,
-            rect_width=w,
-            rect_height=h,
-            marker_symbol_size=min((w, h)) / 10,
-        )
-        self._stage_pos_marker.visible = False
+        # marker for stage position (created when a camera is available)
+        self._stage_pos_marker: StagePositionMarker | None = None
+        self._create_stage_pos_marker()
 
         # --- cached parameters for efficient affine calculations ---
         self._affine_state = AffineState(self._mmc)
@@ -221,7 +184,7 @@ class StageExplorer(QWidget):
         self._toolbar.addWidget(self._stage_pos_label)
 
         # connect actions to methods
-        tb.clear_action.triggered.connect(self._stage_viewer.clear)
+        tb.clear_action.triggered.connect(self._on_clear_action)
         tb.zoom_to_fit_action.triggered.connect(self._on_zoom_to_fit_action)
         tb.auto_zoom_to_fit_action.triggered.connect(self._on_auto_zoom_to_fit_action)
         tb.snap_action.triggered.connect(self._on_snap_action)
@@ -229,8 +192,13 @@ class StageExplorer(QWidget):
         tb.show_grid_action.triggered.connect(self._on_show_grid_action)
         tb.delete_rois_action.triggered.connect(self.roi_manager.clear)
         tb.scan_action.triggered.connect(self._on_scan_action)
+        tb.stop_scan_action.triggered.connect(self._on_stop_scan_action)
         tb.marker_mode_action_group.triggered.connect(self._update_marker_mode)
         tb.scan_menu.valueChanged.connect(self._on_scan_options_changed)
+
+        self._contrast_slider = ContrastSlider(self)
+        self._contrast_slider.setVisible(False)
+        self._contrast_slider.valueChanged.connect(self._on_contrast_slider_changed)
 
         # main layout
         main_layout = QVBoxLayout(self)
@@ -238,11 +206,13 @@ class StageExplorer(QWidget):
         main_layout.setContentsMargins(0, 0, 0, 0)
         main_layout.addWidget(self._toolbar, 0)
         main_layout.addWidget(self._stage_viewer, 1)
+        main_layout.addWidget(self._contrast_slider, 0)
 
         # connections core events
         self._mmc.events.systemConfigurationLoaded.connect(self._on_sys_config_loaded)
         self._mmc.events.imageSnapped.connect(self._on_image_snapped)
         self._mmc.mda.events.frameReady.connect(self._on_frame_ready)
+        self._mmc.mda.events.sequenceFinished.connect(self._on_sequence_finished)
         self._mmc.events.pixelSizeChanged.connect(self._on_pixel_size_changed)
         self._mmc.events.pixelSizeAffineChanged.connect(
             self._on_pixel_size_affine_changed
@@ -254,10 +224,11 @@ class StageExplorer(QWidget):
         )
 
         # initial setup
-        self._on_sys_config_loaded()
         self._on_roi_changed()
         self._toolbar.snap_action.setChecked(self._snap_on_double_click)
-        self._toolbar.poll_stage_action.trigger()
+        self._update_actions_enabled()
+        if self._poll_stage_position:
+            self._toolbar.poll_stage_action.trigger()
         self.zoom_to_fit()
 
     def closeEvent(self, a0: QCloseEvent | None) -> None:
@@ -268,8 +239,11 @@ class StageExplorer(QWidget):
         self._stop_poller()
 
     def _stop_poller(self) -> None:
-        if self._stage_poller.isRunning():
-            self._stage_poller.stop()
+        try:
+            if self._stage_poller.isRunning():
+                self._stage_poller.stop()
+        except RuntimeError:  # pragma: no cover
+            pass
 
     # -----------------------------PUBLIC METHODS-------------------------------------
 
@@ -331,26 +305,57 @@ class StageExplorer(QWidget):
         matrix = stage_shift @ self._affine_state.system_affine @ self._half_img_shift
         self._stage_viewer.add_image(image, transform=matrix.T)
 
+        if not self._contrast_slider.isVisible():
+            self._contrast_slider.setVisible(True)
+            self._contrast_slider._max_spin._set_from_camera()
+        min_ = np.min(image)
+        max_ = np.max(image)
+        self._contrast_slider.update_data_range(min_, max_)
+
     def zoom_to_fit(self, *, margin: float = 0.05) -> None:
         """Zoom to fit the current view to the images in the scene.
 
         ...also considering the stage position marker.
         """
-        visuals: Iterable[VisualNode] = [
-            *self._stage_viewer._get_images(),  # pyright: ignore
-            self._stage_pos_marker,
-        ]
+        visuals: list = list(self._stage_viewer._get_images())  # pyright: ignore
+        if self._stage_pos_marker is not None:
+            visuals.append(self._stage_pos_marker)
         x_bounds, y_bounds, *_ = get_vispy_scene_bounds(visuals)
         self._stage_viewer.view.camera.set_range(x=x_bounds, y=y_bounds, margin=margin)
 
     # -----------------------------PRIVATE METHODS------------------------------------
 
+    def _has_devices(self) -> bool:
+        """Return True if devices (beyond the core) are loaded."""
+        return len(self._mmc.getLoadedDevices()) > 1
+
+    def _update_actions_enabled(self) -> None:
+        """Enable/disable toolbar actions based on loaded devices."""
+        has_devices = self._has_devices()
+        tb = self._toolbar
+        tb.snap_action.setEnabled(has_devices)
+        tb.poll_stage_action.setEnabled(has_devices)
+        tb.scan_action.setEnabled(has_devices)
+        tb.delete_rois_action.setEnabled(has_devices)
+        for action in self.roi_manager.mode_actions.actions():
+            action.setEnabled(has_devices)
+
     # ACTIONS ----------------------------------------------------------------------
 
+    @Slot()
+    def _on_clear_action(self) -> None:
+        """Clear the scene and hide the contrast slider."""
+        self._stage_viewer.clear()
+        self._contrast_slider.reset_data_range()
+        self._contrast_slider.setVisible(False)
+
+    @Slot()
     def _on_roi_changed(self) -> None:
         """Update the ROI manager when a new ROI is set."""
         img_w = self._mmc.getImageWidth()
         img_h = self._mmc.getImageHeight()
+        if not img_w or not img_h:
+            return
         px = self._mmc.getPixelSizeUm()
         self.roi_manager.update_fovs((img_w * px, img_h * px))
 
@@ -361,35 +366,48 @@ class StageExplorer(QWidget):
         self._half_img_shift = np.eye(4)
         self._half_img_shift[0:2, 3] = (-img_w / 2, -img_h / 2)
 
-        self._stage_pos_marker.set_rect_size(img_w, img_h)
+        if self._stage_pos_marker is not None:
+            self._stage_pos_marker.set_rect_size(img_w, img_h)
 
+    @Slot(bool)
     def _on_snap_action(self, checked: bool) -> None:
         """Update the stage viewer settings based on the state of the action."""
         self.snap_on_double_click = checked
 
+    @Slot(bool)
     def _on_zoom_to_fit_action(self, checked: bool) -> None:
         """Set the zoom to fit property based on the state of the action."""
         # self._toolbar.zoom_to_fit_action.setChecked(checked)
         self._auto_zoom_to_fit = False
         self.zoom_to_fit()
 
+    @Slot(bool)
     def _on_auto_zoom_to_fit_action(self, checked: bool) -> None:
         """Set the auto zoom to fit property based on the state of the action."""
         self._auto_zoom_to_fit = checked
         if checked:
             self.zoom_to_fit()
 
+    @Slot()
     def _update_marker_mode(self) -> None:
         """Update the poll mode and show/hide the required stage position marker.
 
         Usually, the sender will be the action_group on the PositionIndicatorMenu.
         """
         sender = self.sender()
+        if self._stage_pos_marker is None:
+            return
         if isinstance(sender, QActionGroup) and (action := sender.checkedAction()):
             pi = PositionIndicator(action.text())
             self._stage_pos_marker.set_rect_visible(pi.show_rect)
             self._stage_pos_marker.set_marker_visible(pi.show_marker)
 
+    @Slot(tuple)
+    def _on_contrast_slider_changed(self, value: tuple[float, float]) -> None:
+        """Apply the contrast slider values to all images."""
+        self._stage_viewer.set_clims(value)
+
+    @Slot()
     def _on_scan_action(self) -> None:
         """Scan the selected ROI."""
         if not (active_rois := self.roi_manager.selected_rois()):
@@ -403,6 +421,20 @@ class StageExplorer(QWidget):
                 self._our_mda_running = True
                 self._mmc.run_mda(seq)
 
+    @Slot()
+    def _on_stop_scan_action(self) -> None:
+        """Cancel the running scan, or stop the stage if no scan is running."""
+        if self._mmc.mda.is_running():
+            self._mmc.mda.cancel()
+        elif xy_dev := self._mmc.getXYStageDevice():
+            self._mmc.stop(xy_dev)
+
+    @Slot()
+    def _on_sequence_finished(self) -> None:
+        """Reset scan state when the MDA sequence finishes."""
+        self._our_mda_running = False
+
+    @Slot(object)
     def _on_scan_options_changed(self, value: tuple[float, OrderMode]) -> None:
         """Update scan settings on the ROI manager so visuals refresh."""
         overlap, mode = value
@@ -414,7 +446,6 @@ class StageExplorer(QWidget):
         if a0.key() == Qt.Key.Key_Escape:
             if self._our_mda_running:
                 self._mmc.mda.cancel()
-                self._our_mda_running = False
         super().keyPressEvent(a0)
 
     # CORE ------------------------------------------------------------------------
@@ -426,33 +457,63 @@ class StageExplorer(QWidget):
         fov_h = self._mmc.getImageHeight() * px
         return fov_w, fov_h
 
-    def _half_img_translation_mtx(self, img_w: int, img_h: int) -> np.ndarray:
-        """Return the transformation matrix to translate half the size of the image."""
-        # by default, vispy add the images from the bottom-left corner. We need to
-        # translate by -w/2 and -h/2 so the position corresponds to the center of the
-        # images. In addition, this make sure the rotation (if any) is applied around
-        # the center of the image.
-        T_center = np.eye(4)
-        T_center[0, 3] = -img_w / 2
-        T_center[1, 3] = -img_h / 2
-        return T_center
-
+    @Slot()
     def _on_sys_config_loaded(self) -> None:
-        """Clear the scene when the system configuration is loaded."""
+        """Clear the scene and reinitialize when the system configuration is loaded."""
         self._stage_viewer.clear()
+        self._contrast_slider.reset_data_range()
+        self._contrast_slider.setVisible(False)
+        self._set_stage_controller()
+        self._affine_state.refresh()
 
+        self._create_stage_pos_marker()
+        self._on_roi_changed()
+        self._update_actions_enabled()
+
+        # start/stop the poller based on whether an XY stage is available
+        has_xy = bool(self._mmc.getXYStageDevice())
+        if has_xy and not self._stage_poller.isRunning():
+            self._toolbar.poll_stage_action.setChecked(True)
+            self._on_poll_stage_action(True)
+            self.zoom_to_fit()
+        elif not has_xy and self._stage_poller.isRunning():
+            self._toolbar.poll_stage_action.setChecked(False)
+            self._on_poll_stage_action(False)
+
+    def _create_stage_pos_marker(self) -> None:
+        """(Re)create the stage position marker if a camera is available."""
+        w, h = self._mmc.getImageWidth(), self._mmc.getImageHeight()
+        if not w or not h:
+            return
+        if self._stage_pos_marker is not None:
+            self._stage_pos_marker.parent = None
+        self._stage_pos_marker = StagePositionMarker(
+            parent=self._stage_viewer.view.scene,
+            rect_width=w,
+            rect_height=h,
+            marker_symbol_size=min(w, h) / 10,
+        )
+        self._stage_pos_marker.visible = False
+
+    def _set_stage_controller(self) -> None:
+        self._stage_controller = None
+        if xy_dev := self._mmc.getXYStageDevice():
+            self._stage_controller = QStageMoveAccumulator.for_device(xy_dev, self._mmc)
+
+    @Slot(float)
     def _on_pixel_size_changed(self, value: float) -> None:
-        """Update scene when the pixel size changes."""
+        """Refresh the affine state when pixel size changes."""
         self._affine_state.refresh()
 
+    @Slot()
     def _on_pixel_size_affine_changed(self) -> None:
-        """Handle updates to the 2 x 3 pixel size affine."""
-        self._pixel_size_affine = self._mmc.getPixelSizeAffine()
+        """Refresh the affine state when pixel size affine changes."""
         self._affine_state.refresh()
 
+    @Slot(object)
     def _on_mouse_double_click(self, event: MouseEvent) -> None:
         """Move the stage to the clicked position."""
-        if not self._mmc.getXYStageDevice():
+        if not self._mmc.getXYStageDevice() or self._stage_controller is None:
             return
         if self.roi_manager.mode == "create-poly":
             return
@@ -466,6 +527,7 @@ class StageExplorer(QWidget):
         self._stage_pos_label.setText(f"X: {x:.2f} µm  Y: {y:.2f} µm")
         # snap an image if the snap on double click property is set
 
+    @Slot()
     def _on_image_snapped(self) -> None:
         """Add the snapped image to the scene."""
         if self._mmc.mda.is_running():
@@ -476,6 +538,7 @@ class StageExplorer(QWidget):
         x, y = self._mmc.getXYPosition()
         self._add_image_and_update_widget(img, x, y)
 
+    @Slot(object, object)
     def _on_frame_ready(self, image: np.ndarray, event: useq.MDAEvent) -> None:
         """Add the image to the scene when frameReady event is emitted."""
         # TODO: better handle c and z (e.g. multi-channels?, max projection?)
@@ -485,26 +548,31 @@ class StageExplorer(QWidget):
 
     # STAGE POSITION MARKER -----------------------------------------------------
 
+    @Slot(bool)
     def _on_poll_stage_action(self, checked: bool) -> None:
         """Set the poll stage position property based on the state of the action."""
-        self._stage_pos_marker.visible = checked
+        if self._stage_pos_marker is not None:
+            self._stage_pos_marker.visible = checked
         self._poll_stage_position = checked
-        if checked:
+        if checked and self._mmc.getXYStageDevice():
             self._stage_poller.start()
         else:
-            self._stage_poller.stop()
+            self._stop_poller()
 
+    @Slot(bool)
     def _on_show_grid_action(self, checked: bool) -> None:
         """Set the show grid property based on the state of the action."""
         self._stage_viewer.set_grid_visible(checked)
 
+    @Slot(float, float)
     def _on_stage_position_polled(self, stage_x: float, stage_y: float) -> None:
         """Update the marker and label with the polled stage position."""
         self._stage_pos_label.setText(f"X: {stage_x:.2f} µm  Y: {stage_y:.2f} µm")
 
         # fast path: copy cached rotation/scale part and just update translation
-        matrix = self._affine_state.system_affine_translated(stage_x, stage_y)
-        self._stage_pos_marker.apply_transform(matrix.T)
+        if self._stage_pos_marker is not None:
+            matrix = self._affine_state.system_affine_translated(stage_x, stage_y)
+            self._stage_pos_marker.apply_transform(matrix.T)
 
         # zoom_to_fit only if auto _auto_zoom_to_fit property is set to True.
         if self._auto_zoom_to_fit:
@@ -550,6 +618,158 @@ class StageExplorer(QWidget):
         return all(view_rect.contains(*vertex) for vertex in vertices)
 
 
+_CLIM_SLIDER_SS = """
+QSlider::groove:horizontal {
+    height: 15px;
+    background: qlineargradient(
+        x1:0, y1:0, x2:0, y2:1,
+        stop:0 rgba(128, 128, 128, 0.25),
+        stop:1 rgba(128, 128, 128, 0.1)
+    );
+    border-radius: 3px;
+}
+QSlider::handle:horizontal {
+    width: 38px;
+    background: #999999;
+    border-radius: 3px;
+}
+QSlider::sub-page:horizontal {
+    background: qlineargradient(
+        x1:0, y1:0, x2:0, y2:1,
+        stop:0 rgba(100, 100, 100, 0.25),
+        stop:1 rgba(100, 100, 100, 0.1)
+    );
+}
+QRangeSlider { qproperty-barColor: qlineargradient(
+    x1:0, y1:0, x2:0, y2:1,
+    stop:0 rgba(100, 80, 120, 0.2),
+    stop:1 rgba(100, 80, 120, 0.4)
+)}
+SliderLabel { font-size: 10px; color: white; }
+"""
+
+
+class _MaxSpinBox(QSpinBox):
+    """Frameless spinbox for the contrast slider maximum, with a context menu."""
+
+    _DEFAULT_MAX = 2**16 - 1
+
+    def __init__(self, parent: QWidget | None = None) -> None:
+        super().__init__(parent)
+        self.setRange(1, self._DEFAULT_MAX)
+        self.setValue(self._DEFAULT_MAX)
+        self.setButtonSymbols(QSpinBox.ButtonSymbols.NoButtons)
+        self.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.setKeyboardTracking(False)
+        self.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+        self.customContextMenuRequested.connect(self._show_context_menu)
+        font = self.font()
+        font.setPointSize(11)
+        self.setFont(font)
+        self.setFixedWidth(self.fontMetrics().horizontalAdvance("888888"))
+        self.setStyleSheet("_MaxSpinBox { background: transparent; border: none; }")
+
+    def _core(self) -> CMMCorePlus | None:
+        """Walk up the widget tree to find the CMMCorePlus instance."""
+        widget = self.parent()
+        while widget is not None:
+            if hasattr(widget, "_mmc"):
+                return widget._mmc  # type: ignore [no-any-return]
+            widget = widget.parent()
+        return None
+
+    def _show_context_menu(self, pos: QWidget) -> None:
+        menu = QMenu(self)
+        if action := menu.addAction("Set to camera bit depth"):
+            action.setEnabled(self._core() is not None)
+            action.triggered.connect(self._set_from_camera)
+            menu.exec(self.mapToGlobal(pos))
+
+    def _set_from_camera(self) -> None:
+        if (mmc := self._core()) is not None:
+            self.setValue(2 ** mmc.getImageBitDepth() - 1)
+
+
+class ContrastSlider(QWidget):
+    """A contrast range slider with an auto-contrast toggle button."""
+
+    valueChanged = Signal(tuple)
+    """Emitted as (min, max) floats whenever the effective clim changes."""
+    autoToggled = Signal(bool)
+    """Emitted when the auto-contrast button is toggled."""
+
+    def __init__(self, parent: QWidget | None = None) -> None:
+        super().__init__(parent)
+        self._auto: bool = True
+        self._data_min: float = float("inf")
+        self._data_max: float = float("-inf")
+
+        self._slider = QLabeledRangeSlider(Qt.Orientation.Horizontal, self)
+        self._slider.setRange(0, _MaxSpinBox._DEFAULT_MAX)
+        self._slider.setStyleSheet(_CLIM_SLIDER_SS)
+        self._slider.setHandleLabelPosition(
+            QLabeledRangeSlider.LabelPosition.LabelsOnHandle
+        )
+        self._slider.setEdgeLabelMode(QLabeledRangeSlider.EdgeLabelMode.NoLabel)
+        self._slider.valueChanged.connect(self._on_slider_changed)
+
+        self._max_spin = _MaxSpinBox(self)
+        self._max_spin.valueChanged.connect(self._on_max_spin_changed)
+
+        self._auto_btn = QPushButton("Auto", self)
+        self._auto_btn.setCheckable(True)
+        self._auto_btn.setChecked(True)
+        self._auto_btn.toggled.connect(self._on_auto_toggled)
+
+        layout = QHBoxLayout(self)
+        layout.setSpacing(5)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.addWidget(self._slider, 1)
+        layout.addWidget(self._max_spin, 0)
+        layout.addWidget(self._auto_btn, 0)
+
+    @property
+    def auto(self) -> bool:
+        """Whether auto-contrast is enabled."""
+        return self._auto
+
+    def set_maximum(self, value: int) -> None:
+        """Set the slider and spinbox maximum."""
+        self._max_spin.setValue(value)
+
+    def update_data_range(self, img_min: float, img_max: float) -> None:
+        """Expand the running data range and, if auto, update the handles."""
+        self._data_min = min(self._data_min, img_min)
+        self._data_max = max(self._data_max, img_max)
+        if self._auto:
+            self._set_handles(self._data_min, self._data_max)
+            self.valueChanged.emit((self._data_min, self._data_max))
+
+    def reset_data_range(self) -> None:
+        """Reset the running data range (e.g. after clearing the scene)."""
+        self._data_min = float("inf")
+        self._data_max = float("-inf")
+
+    def _set_handles(self, lo: float, hi: float) -> None:
+        with QSignalBlocker(self._slider):
+            self._slider.setValue((int(lo), int(hi)))
+
+    def _on_slider_changed(self, value: tuple[int, int]) -> None:
+        if self._auto_btn.isChecked():
+            self._auto_btn.setChecked(False)
+        self.valueChanged.emit((float(value[0]), float(value[1])))
+
+    def _on_max_spin_changed(self, value: int) -> None:
+        self._slider.setRange(0, value)
+
+    def _on_auto_toggled(self, checked: bool) -> None:
+        self._auto = checked
+        if checked and self._data_min < self._data_max:
+            self._set_handles(self._data_min, self._data_max)
+            self.valueChanged.emit((self._data_min, self._data_max))
+        self.autoToggled.emit(checked)
+
+
 class PositionIndicatorMenu(QMenu):
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
@@ -585,7 +805,6 @@ class StageExplorerToolbar(QToolBar):
         self.setIconSize(QSize(22, 22))
         # self.setMovable(False)
         self.setContentsMargins(0, 0, 8, 0)
-        self.setStyleSheet(SS_TOOLBUTTON)
 
         self.clear_action = self.addAction(
             QIconifyIcon("mdi:close", color=GRAY),
@@ -637,6 +856,10 @@ class StageExplorerToolbar(QToolBar):
         self.scan_menu = ScanMenu(self)
         scan_btn.setMenu(self.scan_menu)
         scan_btn.setPopupMode(QToolButton.ToolButtonPopupMode.MenuButtonPopup)
+        self.stop_scan_action = self.addAction(
+            QIconifyIcon("bi:sign-stop", color=GRAY),
+            "Stop Scan",
+        )
 
 
 class ScanMenu(QMenu):
@@ -670,6 +893,7 @@ class ScanMenu(QMenu):
         """Return (overlap, order_mode)."""
         return self._overlap_spin.value(), self._mode_cbox.currentEnum()
 
+    @Slot()
     def _emit(self) -> None:
         self.valueChanged.emit(self.value())
 

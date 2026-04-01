@@ -4,7 +4,7 @@ import warnings
 from typing import Any, Union
 
 from pymmcore_plus import CMMCorePlus, DeviceType
-from qtpy.QtCore import QSize, Qt
+from qtpy.QtCore import QSize, Qt, Slot
 from qtpy.QtGui import QColor, QIcon
 from qtpy.QtWidgets import QCheckBox, QHBoxLayout, QPushButton, QSizePolicy, QWidget
 from superqt.iconify import QIconifyIcon
@@ -124,6 +124,7 @@ class ShuttersWidget(QWidget):
 
         self.destroyed.connect(self._disconnect)
 
+    @Slot()
     def _refresh(self) -> None:
         """Full widget refresh from current core state."""
         loaded = self._mmc.getLoadedDevicesOfType(DeviceType.ShutterDevice)
@@ -166,18 +167,21 @@ class ShuttersWidget(QWidget):
         else:
             self.shutter_button.setEnabled(True)
 
+    @Slot(str, bool)
     def _on_shutter_open_changed(self, dev: str, is_open: bool) -> None:
         if self._initializing or dev != self.shutter_device:
             return
         self._is_open = is_open
         self._update_ui()
 
+    @Slot(str, str, object)
     def _on_core_property_changed(self, dev: str, prop: str, value: Any) -> None:
         if self._initializing:
             return
         if dev == "Core" and prop == "Shutter":
             self._update_button_enabled()
 
+    @Slot(bool)
     def _on_autoshutter_changed(self, state: bool) -> None:
         if self._initializing:
             return
@@ -186,15 +190,18 @@ class ShuttersWidget(QWidget):
                 self.autoshutter_checkbox.setChecked(state)
         self._update_button_enabled()
 
+    @Slot(str, str)
     def _on_config_set(self, group: str, preset: str) -> None:
         if self._initializing:
             return
         self._update_button_enabled()
 
+    @Slot()
     def _on_shutter_btn_clicked(self) -> None:
         new_state = not self._is_open
         self._mmc.setShutterOpen(self.shutter_device, new_state)
 
+    @Slot(bool)
     def _on_shutter_checkbox_toggled(self, state: bool) -> None:
         self._mmc.setAutoShutter(state)
 

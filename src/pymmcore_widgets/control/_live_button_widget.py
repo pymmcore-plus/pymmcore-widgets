@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import Union
 
 from pymmcore_plus import CMMCorePlus
-from qtpy.QtCore import QSize, Qt
+from qtpy.QtCore import QSize, Qt, Slot
 from qtpy.QtGui import QColor
 from qtpy.QtWidgets import QPushButton, QWidget
 from superqt.iconify import QIconifyIcon
@@ -142,9 +142,11 @@ class LiveButton(QPushButton):
         self.setIconSize(QSize(30, 30))
         self.clicked.connect(self._toggle_live_mode)
 
+    @Slot()
     def _on_system_cfg_loaded(self) -> None:
         self.setEnabled(bool(self._mmc.getCameraDevice()))
 
+    @Slot()
     def _toggle_live_mode(self) -> None:
         """Start/stop SequenceAcquisition."""
         if self._mmc.isSequenceRunning():
@@ -165,9 +167,11 @@ class LiveButton(QPushButton):
             self.setIcon(QIconifyIcon("mdi:video-outline", color=self._icon_color_on))
             self.setText(self._button_text_on)
 
+    @Slot()
     def _on_sequence_started(self) -> None:
         self._set_icon_state(True)
 
+    @Slot(str)
     def _on_sequence_stopped(self, camera: str) -> None:
         self._set_icon_state(False)
 

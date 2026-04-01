@@ -7,7 +7,7 @@ import warnings
 from typing import Any, ClassVar, cast
 
 from pymmcore_plus import CMMCorePlus
-from qtpy.QtCore import Qt
+from qtpy.QtCore import Qt, Slot
 from qtpy.QtGui import QDoubleValidator
 from qtpy.QtWidgets import (
     QAbstractItemView,
@@ -198,6 +198,7 @@ class PixelSizeTable(QTableWidget):
         layout.addWidget(btn)
         return wdg
 
+    @Slot()
     def _delete_cfg(self) -> None:
         w = self.sender().parent()
         row = self.indexAt(w.pos()).row()
@@ -301,9 +302,11 @@ class ObjectivesPixelConfigurationWidget(QDialog):
 
         return self.rbt_wdg
 
+    @Slot(bool)
     def _on_mag_toggle(self, state: bool) -> None:
         self._enable_column(MAGNIFICATION, not state)
 
+    @Slot(bool)
     def _on_img_toggle(self, state: bool) -> None:
         self._enable_column(IMAGE_PX_SIZE, not state)
 
@@ -318,10 +321,12 @@ class ObjectivesPixelConfigurationWidget(QDialog):
                     item.setReadOnly(True)
                     item.setStyleSheet("font-weight: bold;")
 
+    @Slot()
     def _on_sys_cfg_loaded(self) -> None:
         self.objective_device = guess_objective_or_prompt(self._mmc, parent=self)
         self._rebuild()
 
+    @Slot(float)
     def _on_px_set(self, value: float) -> None:
         rows = []
         for cfg in self._mmc.getAvailablePixelSizeConfigs():
@@ -436,6 +441,7 @@ class ObjectivesPixelConfigurationWidget(QDialog):
                 _mag = self._calculate_magnification(camera_px_size, image_px_size)
                 mag.setText(f"{_mag:.1f}")
 
+    @Slot()
     def _on_resolutioID_changed(self) -> None:
         sender = self.sender()
         row = self.table.indexAt(sender.pos()).row()
@@ -481,6 +487,7 @@ class ObjectivesPixelConfigurationWidget(QDialog):
 
             self._apply_changes(row)
 
+    @Slot()
     def _on_camera_px_size_changed(self) -> None:
         sender = self.sender()
         row = self.table.indexAt(sender.pos()).row()
@@ -504,6 +511,7 @@ class ObjectivesPixelConfigurationWidget(QDialog):
 
             self._apply_changes(r)
 
+    @Slot()
     def _on_magnification_changed(self) -> None:
         sender = self.sender()
         row = self.table.indexAt(sender.pos()).row()
@@ -518,6 +526,7 @@ class ObjectivesPixelConfigurationWidget(QDialog):
 
         self._apply_changes(row)
 
+    @Slot()
     def _on_image_px_size_changed(self) -> None:
         sender = self.sender()
         row = self.table.indexAt(sender.pos()).row()
