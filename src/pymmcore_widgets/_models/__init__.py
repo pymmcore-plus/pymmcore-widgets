@@ -6,6 +6,7 @@ from ._core_functions import (
     get_loaded_devices,
     get_preset_settings,
     get_property_info,
+    set_config_groups,
 )
 from ._py_config_model import (
     ConfigGroup,
@@ -34,4 +35,5 @@ __all__ = [
     "get_loaded_devices",
     "get_preset_settings",
     "get_property_info",
+    "set_config_groups",
 ]
