@@ -410,6 +410,13 @@ class CoreConnectedPositionTable(PositionTable):
                 z = data.get(self.Z.key, self._mmc.getZPosition())
                 self._mmc.setZPosition(z)
 
+            self._wait_for_positioning_devices(
+                include_xy=bool(self._mmc.getXYStageDevice()),
+                include_z=bool(
+                    self.include_z.isChecked() and self._mmc.getFocusDevice()
+                ),
+            )
+
             # HANDLE AUTOFOCUS OFFSET___________________________________________________
 
             # if 'af_per_position' is not checked, 'AF.key' will not be in 'data and
@@ -429,21 +436,39 @@ class CoreConnectedPositionTable(PositionTable):
                         self._mmc.enableContinuousFocus(False)
                         self._perform_autofocus()
                         self._mmc.enableContinuousFocus(af_engaged)
-                        self._mmc.waitForSystem()
+                        self._wait_for_autofocus_devices(include_focus=True)
                     except RuntimeError as e:
                         logger.warning("Hardware autofocus failed. %s", e)
-
-            self._mmc.waitForSystem()
 
     def _perform_autofocus(self) -> None:
         # run autofocus (run 3 times in case it fails)
         @retry(exceptions=RuntimeError, tries=3, logger=logger.warning)
         def _perform_full_focus() -> None:
             self._mmc.fullFocus()
-            self._mmc.waitForSystem()
+            self._wait_for_autofocus_devices(include_focus=True)
 
-        self._mmc.waitForSystem()
+        self._wait_for_autofocus_devices(include_focus=True)
         _perform_full_focus()
+
+    def _wait_for_positioning_devices(
+        self, *, include_xy: bool = False, include_z: bool = False
+    ) -> None:
+        if include_xy and (xy_dev := self._mmc.getXYStageDevice()):
+            self._mmc.waitForDevice(xy_dev)
+        if include_z and (z_dev := self._mmc.getFocusDevice()):
+            self._mmc.waitForDevice(z_dev)
+
+    def _wait_for_autofocus_devices(self, *, include_focus: bool = False) -> None:
+        if af_dev := self._mmc.getAutoFocusDevice():
+            self._mmc.waitForDevice(af_dev)
+
+            offset_getter = getattr(self._mmc, "_getAutoFocusOffsetDevice", None)
+            if callable(offset_getter):
+                if offset_dev := offset_getter(af_dev):
+                    self._mmc.waitForDevice(offset_dev)
+
+        if include_focus and (z_dev := self._mmc.getFocusDevice()):
+            self._mmc.waitForDevice(z_dev)
 
     def _set_row_xy_enabled(self, row: int, enabled: bool, tip: str = "") -> None:
         """Enable/disable the XY columns and button for a specific row."""
