@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from pymmcore_plus import CMMCorePlus
 from qtpy.QtCore import Qt, Slot
 from qtpy.QtWidgets import (
@@ -7,6 +9,7 @@ from qtpy.QtWidgets import (
     QDialog,
     QFileDialog,
     QHBoxLayout,
+    QMessageBox,
     QPushButton,
     QSizePolicy,
     QSpacerItem,
@@ -16,9 +19,18 @@ from qtpy.QtWidgets import (
     QWidget,
 )
 
+from pymmcore_widgets._models import set_config_groups
 from pymmcore_widgets._util import load_system_config
 from pymmcore_widgets.control._presets_widget import PresetsWidget
 from pymmcore_widgets.device_properties._property_widget import PropertyWidget
+
+if TYPE_CHECKING:
+    from qtpy.QtGui import QCloseEvent
+
+    from pymmcore_widgets._models import ConfigGroup
+    from pymmcore_widgets.config_presets._views._config_groups_editor import (
+        ConfigGroupsEditor,
+    )
 
 
 class _MainTable(QTableWidget):
@@ -42,7 +54,11 @@ class _MainTable(QTableWidget):
 
 
 class GroupPresetTableWidget(QWidget):
-    """A Widget to create, edit, delete and set micromanager group presets.
+    """A Widget to view and set micromanager group presets.
+
+    Shows a table of config groups with their current preset values.
+    Provides an "Edit Groups and Presets" button that opens a
+    `ConfigGroupsEditor` dialog for editing.
 
     Parameters
     ----------
@@ -64,48 +80,36 @@ class GroupPresetTableWidget(QWidget):
         self._mmc.events.configGroupDeleted.connect(self._on_group_deleted)
         self._mmc.events.configDefined.connect(self._on_config_defined)
 
-        self._create_gui()
-
-        self._populate_table()
-
-        self.destroyed.connect(self._disconnect)
-
-    def _create_gui(self) -> None:
-        self.setLayout(QVBoxLayout())
-        self.layout().setSpacing(5)
-        self.setContentsMargins(0, 0, 0, 0)
-
-        save_btn = self._add_save_button()
-        self.layout().addWidget(save_btn)
-
         self.table_wdg = _MainTable()
-        self.layout().addWidget(self.table_wdg)
 
-        self.edit_groups_btn = QPushButton(text="Edit Groups and Presets")
-        self.edit_groups_btn.clicked.connect(self._open_config_groups_editor)
-        self.layout().addWidget(self.edit_groups_btn)
-
-    def _add_save_button(self) -> QWidget:
-        save_btn_wdg = QWidget()
-        save_btn_layout = QHBoxLayout()
-        save_btn_layout.setSpacing(5)
-        save_btn_layout.setContentsMargins(0, 0, 0, 0)
-        save_btn_wdg.setLayout(save_btn_layout)
-
-        spacer = QSpacerItem(
-            10, 10, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed
-        )
-        save_btn_layout.addItem(spacer)
         self.save_btn = QPushButton(text="Save cfg")
         self.save_btn.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         self.save_btn.clicked.connect(self._save_cfg)
-        save_btn_layout.addWidget(self.save_btn)
         self.load_btn = QPushButton(text="Load cfg")
         self.load_btn.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         self.load_btn.clicked.connect(self._load_cfg)
-        save_btn_layout.addWidget(self.load_btn)
 
-        return save_btn_wdg
+        self.edit_groups_btn = QPushButton(text="Edit Groups and Presets")
+        self.edit_groups_btn.clicked.connect(self._open_config_groups_editor)
+
+        btn_layout = QHBoxLayout()
+        btn_layout.setSpacing(5)
+        btn_layout.setContentsMargins(0, 0, 0, 0)
+        btn_layout.addWidget(self.edit_groups_btn)
+        btn_layout.addItem(
+            QSpacerItem(20, 0, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
+        )
+        btn_layout.addWidget(self.save_btn)
+        btn_layout.addWidget(self.load_btn)
+
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(2, 2, 2, 2)
+        layout.setSpacing(5)
+        layout.addWidget(self.table_wdg)
+        layout.addLayout(btn_layout)
+
+        self._populate_table()
+        self.destroyed.connect(self._disconnect)
 
     def _reset_table(self) -> None:
         self._disconnect_wdgs()
@@ -132,12 +136,9 @@ class GroupPresetTableWidget(QWidget):
                 elif isinstance(wdg, PropertyWidget):
                     wdg = wdg.inner_widget
 
-        # resize to contents the table
         self.table_wdg.resizeColumnToContents(0)
 
     def _get_cfg_data(self, group: str, preset: str) -> tuple[str, str, str, int]:
-        # Return last device-property-value for the preset and the
-        # total number of device-property-value included in the preset.
         data = list(self._mmc.getConfigData(group, preset))
         if not data:
             return "", "", "", 0
@@ -147,14 +148,11 @@ class GroupPresetTableWidget(QWidget):
 
     def _create_group_widget(self, group: str) -> PresetsWidget | PropertyWidget:
         """Return a widget depending on presets and device-property."""
-        # get group presets
         presets = list(self._mmc.getAvailableConfigs(group))
 
         if not presets:
             return  # type: ignore
 
-        # use only the first preset since device
-        # and property are the same for the presets
         device, prop, _, dev_prop_val_count = self._get_cfg_data(group, presets[0])
 
         if len(presets) > 1 or dev_prop_val_count > 1 or dev_prop_val_count == 0:
@@ -178,14 +176,21 @@ class GroupPresetTableWidget(QWidget):
     def _open_config_groups_editor(self) -> None:
         from pymmcore_widgets.config_presets import ConfigGroupsEditor
 
-        dlg = QDialog(self)
-        dlg.setWindowTitle("Edit Groups and Presets")
-        layout = QVBoxLayout(dlg)
-        editor = ConfigGroupsEditor.create_from_core(self._mmc, parent=dlg)
-        editor.configChanged.connect(self._populate_table)
-        layout.addWidget(editor)
-        dlg.resize(800, 600)
-        dlg.show()
+        mmc = self._mmc
+
+        def _apply(
+            groups: list[ConfigGroup], deleted: list[str], channel: str | None
+        ) -> None:
+            set_config_groups(
+                mmc, groups, deleted_groups=deleted, channel_group=channel
+            )
+            editor.setClean()
+
+        editor = ConfigGroupsEditor.create_from_core(mmc)
+        editor.applyRequested.connect(_apply)
+        dlg = _ConfigEditorDialog(editor, parent=self)
+        dlg.resize(1000, 600)
+        dlg.exec()
 
     @Slot()
     def _save_cfg(self) -> None:
@@ -210,3 +215,38 @@ class GroupPresetTableWidget(QWidget):
         self._mmc.events.systemConfigurationLoaded.disconnect(self._populate_table)
         self._mmc.events.configGroupDeleted.disconnect(self._on_group_deleted)
         self._mmc.events.configDefined.disconnect(self._on_config_defined)
+
+
+class _ConfigEditorDialog(QDialog):
+    """Dialog that hosts a ConfigGroupsEditor and prompts on dirty close."""
+
+    def __init__(
+        self, editor: ConfigGroupsEditor, parent: QWidget | None = None
+    ) -> None:
+        super().__init__(parent)
+        self.setWindowTitle("Edit Groups and Presets")
+        self._editor = editor
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.addWidget(editor)
+
+    def reject(self) -> None:
+        self.close()
+
+    def closeEvent(self, event: QCloseEvent) -> None:
+        if not self._editor.isClean():
+            result = QMessageBox.question(
+                self._editor,
+                "Unsaved Changes",
+                "You have unsaved changes. Would you like to apply them?",
+                QMessageBox.StandardButton.Yes
+                | QMessageBox.StandardButton.No
+                | QMessageBox.StandardButton.Cancel,
+                QMessageBox.StandardButton.Yes,
+            )
+            if result == QMessageBox.StandardButton.Yes:
+                self._editor._emit_apply_requested()
+            elif result == QMessageBox.StandardButton.Cancel:
+                event.ignore()
+                return
+        event.accept()
