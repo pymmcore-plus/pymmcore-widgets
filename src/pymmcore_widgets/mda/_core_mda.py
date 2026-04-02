@@ -18,6 +18,7 @@ from useq import MDASequence, Position
 
 from pymmcore_widgets._util import get_next_available_path
 from pymmcore_widgets.useq_widgets import MDASequenceWidget
+from pymmcore_widgets.useq_widgets._autofocus import AutofocusMode
 from pymmcore_widgets.useq_widgets._mda_sequence import (
     AF_AXIS_TOOLTIP,
     AF_DISABLED_TOOLTIP,
@@ -258,7 +259,8 @@ class MDAWidget(MDASequenceWidget):
         # and position-specific offsets haven't been set, show a warning
         pos = self.stage_positions
         if (
-            self.af_axis.value()
+            self.af_axis.mode() is AutofocusMode.HARDWARE
+            and self.af_axis.axes()
             and not self._mmc.isContinuousFocusLocked()
             and (not self.tab_wdg.isChecked(pos) or not self._use_af_per_position())
             and not self._confirm_af_intentions()
@@ -324,12 +326,13 @@ class MDAWidget(MDASequenceWidget):
         Enable af_axis and af_per_position only if there is an autofocus device and no
         absolute z plan is selected.
         """
-        # get the autofocus device
         af_device = self._get_autofocus_device()
-
-        # update the autofocus axis widget
-        self.af_axis.setEnabled(bool(af_device))
-        self.af_axis.setToolTip(self._get_tooltip(self.af_axis))
+        hardware_tooltip = self._get_tooltip(self.af_axis)
+        self.af_axis.setHardwareAvailable(bool(af_device), hardware_tooltip)
+        self.af_axis.setAxesAllowed(
+            bool(af_device) or self.af_axis.mode() is AutofocusMode.SOFTWARE,
+            hardware_tooltip,
+        )
 
         # update the autofocus per position widget
         self.stage_positions.af_per_position.setEnabled(bool(af_device))
