@@ -136,6 +136,14 @@ def _software_af_channel_label(settings: dict[str, Any]) -> str:
     return f"{group} / {channel}"
 
 
+def _software_af_failure_label(settings: dict[str, Any]) -> str:
+    policy = settings.get("failure_policy", "continue_keep_z")
+    return {
+        "continue_keep_z": "Keep previous focus and continue",
+        "abort": "Abort acquisition",
+    }.get(str(policy), str(policy))
+
+
 def run_software_autofocus(
     core: CMMCorePlus, settings: Any
 ) -> SoftwareAutofocusResult:
@@ -242,6 +250,11 @@ class SoftwareAutofocusDialog(QDialog):
 
         self._channel_group = QComboBox()
         self._channel = QComboBox()
+        self._failure_policy = QComboBox()
+        self._failure_policy.addItem(
+            "Keep previous focus and continue", "continue_keep_z"
+        )
+        self._failure_policy.addItem("Abort acquisition", "abort")
 
         self._search_range = QDoubleSpinBox()
         self._search_range.setRange(0.5, 500.0)
@@ -282,6 +295,7 @@ class SoftwareAutofocusDialog(QDialog):
         form.addRow("Focus Channel", self._channel_mode)
         form.addRow("Channel Group", self._channel_group)
         form.addRow("Channel Preset", self._channel)
+        form.addRow("On Failure", self._failure_policy)
         form.addRow("Search Range", self._search_range)
         form.addRow("Step", self._step)
         form.addRow("Crop", self._crop)
@@ -325,6 +339,7 @@ class SoftwareAutofocusDialog(QDialog):
             "channel_mode": str(self._channel_mode.currentData()),
             "channel_group": self._selected_channel_group(),
             "channel": self._selected_channel(),
+            "failure_policy": str(self._failure_policy.currentData()),
             "params": {
                 "search_range_um": float(self._search_range.value()),
                 "step_um": float(self._step.value()),
@@ -344,6 +359,9 @@ class SoftwareAutofocusDialog(QDialog):
         idx = self._channel_mode.findData(value["channel_mode"])
         if idx >= 0:
             self._channel_mode.setCurrentIndex(idx)
+        idx = self._failure_policy.findData(value["failure_policy"])
+        if idx >= 0:
+            self._failure_policy.setCurrentIndex(idx)
         self._set_combo_to_value(self._channel_group, value["channel_group"])
         self._populate_channels()
         self._set_combo_to_value(self._channel, value["channel"])
@@ -440,6 +458,17 @@ class SoftwareAutofocusMDAEngine(MDAEngine):
             except Exception as e:
                 logger.warning("Software autofocus failed. %s", e)
                 self._af_succeeded = False
+                policy = self._software_af_settings.get("failure_policy")
+                if policy == "abort":
+                    raise RuntimeError(
+                        "Software autofocus failed and the failure policy is "
+                        f"'{_software_af_failure_label(self._software_af_settings)}'."
+                    ) from e
+                logger.warning(
+                    "Continuing acquisition with previous focus after autofocus "
+                    "failure (policy: %s).",
+                    _software_af_failure_label(self._software_af_settings),
+                )
             else:
                 self._af_succeeded = True
                 p_idx = event.index.get("p", None)

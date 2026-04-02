@@ -40,6 +40,7 @@ DEFAULT_SOFTWARE_AF_SETTINGS: dict[str, Any] = {
     "channel_mode": "current",
     "channel_group": None,
     "channel": None,
+    "failure_policy": "continue_keep_z",
     "params": {
         "search_range_um": 8.0,
         "step_um": 0.5,
@@ -71,6 +72,10 @@ def normalize_software_af_settings(value: Any) -> dict[str, Any]:
     for key in ("channel_group", "channel"):
         item = value.get(key)
         settings[key] = item if isinstance(item, str) and item else None
+
+    failure_policy = value.get("failure_policy")
+    if isinstance(failure_policy, str) and failure_policy:
+        settings["failure_policy"] = failure_policy
 
     params = value.get("params")
     if isinstance(params, dict):
