@@ -128,6 +128,14 @@ def _z_positions(start_z: float, search_range_um: float, step_um: float) -> list
     return [float(x) for x in positions]
 
 
+def _software_af_channel_label(settings: dict[str, Any]) -> str:
+    if settings.get("channel_mode") != "fixed":
+        return "Current microscope state"
+    group = settings.get("channel_group") or "current group"
+    channel = settings.get("channel") or "current preset"
+    return f"{group} / {channel}"
+
+
 def run_software_autofocus(
     core: CMMCorePlus, settings: Any
 ) -> SoftwareAutofocusResult:
@@ -158,10 +166,25 @@ def run_software_autofocus(
     attempts = 0
 
     previous_exposure = float(core.getExposure()) if exposure_ms is not None else None
+    restore_group: str | None = None
+    restore_channel: str | None = None
 
     try:
         if exposure_ms is not None:
             core.setExposure(float(exposure_ms))
+
+        if options.get("channel_mode") == "fixed":
+            channel_group = options.get("channel_group") or core.getChannelGroup()
+            channel = options.get("channel")
+            if channel_group and channel:
+                restore_group = core.getChannelGroup() or None
+                if restore_group:
+                    try:
+                        restore_channel = core.getCurrentConfig(restore_group)
+                    except Exception:
+                        restore_channel = None
+                core.setConfig(str(channel_group), str(channel))
+                core.waitForSystem()
 
         for _retry_idx in range(max_retries):
             attempts += 1
@@ -179,6 +202,9 @@ def run_software_autofocus(
     finally:
         core.setZPosition(best_z)
         core.waitForDevice(focus_device)
+        if restore_group and restore_channel:
+            core.setConfig(restore_group, restore_channel)
+            core.waitForSystem()
         if previous_exposure is not None:
             core.setExposure(previous_exposure)
 
@@ -197,16 +223,25 @@ class SoftwareAutofocusDialog(QDialog):
         self,
         settings: Any,
         *,
+        core: CMMCorePlus | None = None,
         test_callback: Callable[[dict[str, Any]], str] | None = None,
         parent: QWidget | None = None,
     ) -> None:
         super().__init__(parent)
         self.setWindowTitle("Software Autofocus")
+        self._core = core
         self._test_callback = test_callback
 
         self._backend = QComboBox()
         for scorer in AUTOFOCUS_SCORERS.values():
             self._backend.addItem(scorer.display_name, scorer.backend_id)
+
+        self._channel_mode = QComboBox()
+        self._channel_mode.addItem("Use current state", "current")
+        self._channel_mode.addItem("Force channel preset", "fixed")
+
+        self._channel_group = QComboBox()
+        self._channel = QComboBox()
 
         self._search_range = QDoubleSpinBox()
         self._search_range.setRange(0.5, 500.0)
@@ -238,8 +273,15 @@ class SoftwareAutofocusDialog(QDialog):
         self._retries = QSpinBox()
         self._retries.setRange(1, 10)
 
+        self._channel_mode.currentIndexChanged.connect(self._update_channel_widgets)
+        self._channel_group.currentIndexChanged.connect(self._populate_channels)
+        self._populate_channel_groups()
+
         form = QFormLayout()
         form.addRow("Backend", self._backend)
+        form.addRow("Focus Channel", self._channel_mode)
+        form.addRow("Channel Group", self._channel_group)
+        form.addRow("Channel Preset", self._channel)
         form.addRow("Search Range", self._search_range)
         form.addRow("Step", self._step)
         form.addRow("Crop", self._crop)
@@ -280,6 +322,9 @@ class SoftwareAutofocusDialog(QDialog):
         exposure = float(self._exposure.value())
         return {
             "backend": str(self._backend.currentData()),
+            "channel_mode": str(self._channel_mode.currentData()),
+            "channel_group": self._selected_channel_group(),
+            "channel": self._selected_channel(),
             "params": {
                 "search_range_um": float(self._search_range.value()),
                 "step_um": float(self._step.value()),
@@ -296,23 +341,73 @@ class SoftwareAutofocusDialog(QDialog):
         idx = self._backend.findData(value["backend"])
         if idx >= 0:
             self._backend.setCurrentIndex(idx)
+        idx = self._channel_mode.findData(value["channel_mode"])
+        if idx >= 0:
+            self._channel_mode.setCurrentIndex(idx)
+        self._set_combo_to_value(self._channel_group, value["channel_group"])
+        self._populate_channels()
+        self._set_combo_to_value(self._channel, value["channel"])
         self._search_range.setValue(float(params["search_range_um"]))
         self._step.setValue(float(params["step_um"]))
         self._crop.setValue(int(params["crop_size_px"] or 0))
         self._exposure.setValue(float(params["exposure_ms"] or 0.0))
         self._settle.setValue(float(params["settle_ms"]))
         self._retries.setValue(int(params["max_retries"]))
+        self._update_channel_widgets()
 
     def _on_test_clicked(self) -> None:
         if self._test_callback is None:
             return
         settings = self.value()
-        self._status.setText("Running software autofocus...")
+        self._status.setText(
+            f"Running software autofocus on {_software_af_channel_label(settings)}..."
+        )
         self.repaint()
         try:
             self._status.setText(self._test_callback(settings))
         except Exception as e:
             self._status.setText(f"Autofocus failed: {e}")
+
+    def _populate_channel_groups(self) -> None:
+        self._channel_group.clear()
+        current_group = self._core.getChannelGroup() if self._core else ""
+        if current_group:
+            self._channel_group.addItem(current_group, current_group)
+        if self._core:
+            for group in self._core.getAvailableConfigGroups():
+                if self._channel_group.findData(group) < 0:
+                    self._channel_group.addItem(group, group)
+        self._populate_channels()
+
+    def _populate_channels(self) -> None:
+        current_value = self._selected_channel()
+        self._channel.clear()
+        group = self._selected_channel_group()
+        if self._core and group:
+            for config in self._core.getAvailableConfigs(group):
+                self._channel.addItem(config, config)
+        self._set_combo_to_value(self._channel, current_value)
+        self._update_channel_widgets()
+
+    def _selected_channel_group(self) -> str | None:
+        value = self._channel_group.currentData()
+        return str(value) if value else None
+
+    def _selected_channel(self) -> str | None:
+        value = self._channel.currentData()
+        return str(value) if value else None
+
+    def _set_combo_to_value(self, combo: QComboBox, value: str | None) -> None:
+        if not value:
+            return
+        idx = combo.findData(value)
+        if idx >= 0:
+            combo.setCurrentIndex(idx)
+
+    def _update_channel_widgets(self) -> None:
+        fixed = self._channel_mode.currentData() == "fixed"
+        self._channel_group.setEnabled(fixed)
+        self._channel.setEnabled(fixed)
 
 
 class SoftwareAutofocusMDAEngine(MDAEngine):

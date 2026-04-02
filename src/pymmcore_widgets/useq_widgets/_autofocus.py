@@ -37,6 +37,9 @@ SOFTWARE_AF_PENDING_TOOLTIP = (
 
 DEFAULT_SOFTWARE_AF_SETTINGS: dict[str, Any] = {
     "backend": "tenengrad",
+    "channel_mode": "current",
+    "channel_group": None,
+    "channel": None,
     "params": {
         "search_range_um": 8.0,
         "step_um": 0.5,
@@ -60,6 +63,14 @@ def normalize_software_af_settings(value: Any) -> dict[str, Any]:
     backend = value.get("backend")
     if isinstance(backend, str) and backend:
         settings["backend"] = backend
+
+    channel_mode = value.get("channel_mode")
+    if isinstance(channel_mode, str) and channel_mode:
+        settings["channel_mode"] = channel_mode
+
+    for key in ("channel_group", "channel"):
+        item = value.get(key)
+        settings[key] = item if isinstance(item, str) and item else None
 
     params = value.get("params")
     if isinstance(params, dict):

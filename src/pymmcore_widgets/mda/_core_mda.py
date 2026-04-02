@@ -451,6 +451,7 @@ class MDAWidget(MDASequenceWidget):
 
         dialog = SoftwareAutofocusDialog(
             self.softwareAutofocusSettings(),
+            core=self._mmc,
             test_callback=self._run_software_autofocus_test,
             parent=self,
         )
