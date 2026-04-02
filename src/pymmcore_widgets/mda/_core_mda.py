@@ -33,6 +33,11 @@ from ._core_channels import CoreConnectedChannelTable
 from ._core_grid import CoreConnectedGridPlanWidget
 from ._core_positions import AF_UNAVAILABLE, CoreConnectedPositionTable
 from ._core_z import CoreConnectedZPlanWidget
+from ._autofocus import (
+    SoftwareAutofocusDialog,
+    SoftwareAutofocusMDAEngine,
+    run_software_autofocus,
+)
 from ._save_widget import SaveGroupBox
 
 if TYPE_CHECKING:
@@ -112,6 +117,8 @@ class MDAWidget(MDASequenceWidget):
     ) -> None:
         # create a couple core-connected variants of the tab widgets
         self._mmc = mmcore or CMMCorePlus.instance()
+        self._autofocus_engine = SoftwareAutofocusMDAEngine(self._mmc)
+        self._previous_mda_engine = self._mmc.mda.set_engine(self._autofocus_engine)
 
         super().__init__(parent=parent, tab_widget=CoreMDATabs(None, self._mmc))
 
@@ -138,6 +145,7 @@ class MDAWidget(MDASequenceWidget):
         self._mmc.mda.events.sequenceFinished.connect(self._on_mda_finished)
         self._mmc.events.systemConfigurationLoaded.connect(self._on_sys_config_loaded)
         self._mmc.events.propertyChanged.connect(self._on_property_changed)
+        self.autofocus.valueChanged.connect(self._update_autofocus_enablement)
 
         self.destroyed.connect(self._disconnect)
 
@@ -326,34 +334,39 @@ class MDAWidget(MDASequenceWidget):
         Enable af_axis and af_per_position only if there is an autofocus device and no
         absolute z plan is selected.
         """
+        z_plan_allows_af = not (
+            self.tab_wdg.isChecked(self.z_plan) and self.z_plan.mode() == Mode.TOP_BOTTOM
+        )
         af_device = self._get_autofocus_device()
         hardware_tooltip = self._get_tooltip(self.af_axis)
         self.af_axis.setHardwareAvailable(bool(af_device), hardware_tooltip)
         self.af_axis.setAxesAllowed(
-            bool(af_device) or self.af_axis.mode() is AutofocusMode.SOFTWARE,
+            z_plan_allows_af
+            and (bool(af_device) or self.af_axis.mode() is AutofocusMode.SOFTWARE),
             hardware_tooltip,
         )
 
         # update the autofocus per position widget
-        self.stage_positions.af_per_position.setEnabled(bool(af_device))
+        af_per_pos_enabled = bool(af_device) and self.af_axis.mode() is AutofocusMode.HARDWARE
+        self.stage_positions.af_per_position.setEnabled(af_per_pos_enabled)
         # set tooltip af_per_position
         self.stage_positions.af_per_position.setToolTip(
             self._get_tooltip(self.stage_positions.af_per_position)
+            if af_per_pos_enabled
+            else "Per-position autofocus offsets are only available in hardware mode."
         )
 
     def _get_tooltip(self, wdg: QWidget) -> str:
         """Return the tooltip for the autofocus widgets."""
-        # if there is no autofocus device, return the unavailable tooltip
-        if not self._mmc.getAutoFocusDevice():
-            return AF_UNAVAILABLE
-        # if autofocus device is available, but the z plan is in absolute mode, return
-        # the disabled tooltip
-        if (
-            self.tab_wdg.isChecked(self.z_plan)
-            and self.z_plan.mode() == Mode.TOP_BOTTOM
-            and self._mmc.getAutoFocusDevice()
-        ):
+        z_plan_blocks_af = (
+            self.tab_wdg.isChecked(self.z_plan) and self.z_plan.mode() == Mode.TOP_BOTTOM
+        )
+        if z_plan_blocks_af:
             return AF_DISABLED_TOOLTIP
+
+        # if there is no autofocus device, return the unavailable tooltip
+        if not self._mmc.getAutoFocusDevice() and self.af_axis.mode() is not AutofocusMode.SOFTWARE:
+            return AF_UNAVAILABLE
         # if the widget is the autofocus axis, return the autofocus axis tooltip
         if wdg is self.af_axis:
             return AF_AXIS_TOOLTIP
@@ -432,6 +445,22 @@ class MDAWidget(MDASequenceWidget):
         )
         return bool(response == QMessageBox.StandardButton.Ok)
 
+    def _on_af_configure_requested(self) -> None:
+        if self.autofocus.mode() is not AutofocusMode.SOFTWARE:
+            return
+
+        dialog = SoftwareAutofocusDialog(
+            self.softwareAutofocusSettings(),
+            test_callback=self._run_software_autofocus_test,
+            parent=self,
+        )
+        if dialog.exec():
+            self.setSoftwareAutofocusSettings(dialog.value())
+
+    def _run_software_autofocus_test(self, settings: dict[str, object]) -> str:
+        result = run_software_autofocus(self._mmc, settings)
+        return result.summary()
+
     def _enable_widgets(self, enable: bool) -> None:
         for child in self.children():
             if isinstance(child, CoreMDATabs):
@@ -462,10 +491,17 @@ class MDAWidget(MDASequenceWidget):
         with suppress(Exception):
             self._mmc.mda.events.sequenceStarted.disconnect(self._on_mda_started)
             self._mmc.mda.events.sequenceFinished.disconnect(self._on_mda_finished)
+            self.autofocus.valueChanged.disconnect(self._update_autofocus_enablement)
         self._mmc.events.systemConfigurationLoaded.disconnect(
             self._on_sys_config_loaded
         )
         self._mmc.events.propertyChanged.disconnect(self._on_property_changed)
+        if (
+            self._mmc.mda.engine is self._autofocus_engine
+            and self._previous_mda_engine is not None
+            and not self._mmc.mda.is_running()
+        ):
+            self._mmc.mda.set_engine(self._previous_mda_engine)
 
     def _enable_af(self, state: bool) -> None:
         """Override the autofocus enablement to account for the autofocus device."""

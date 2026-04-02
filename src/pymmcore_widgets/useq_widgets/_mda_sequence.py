@@ -25,8 +25,11 @@ import pymmcore_widgets
 from pymmcore_widgets._humanize import humanize_time
 from pymmcore_widgets.useq_widgets._autofocus import (
     PYMMCW_AUTOFOCUS_KEY,
+    PYMMCW_SOFTWARE_AUTOFOCUS_KEY,
     AutofocusControls,
     AutofocusMode,
+    default_software_af_settings,
+    normalize_software_af_settings,
 )
 from pymmcore_widgets.useq_widgets._channels import ChannelTable
 from pymmcore_widgets.useq_widgets._checkable_tabwidget_widget import CheckableTabWidget
@@ -281,6 +284,7 @@ class MDASequenceWidget(QWidget):
 
         self.keep_shutter_open = KeepShutterOpen()
         self.autofocus = AutofocusControls()
+        self._software_autofocus_settings = default_software_af_settings()
         cbox_row = QVBoxLayout()
         cbox_row.setContentsMargins(0, 0, 0, 0)
         cbox_row.setSpacing(5)
@@ -372,8 +376,9 @@ class MDASequenceWidget(QWidget):
             # check if the autofocus offsets are the same for all positions
             # and simplify to a single global autofocus plan if so.
             replace.update(self._simplify_af_offsets(val))
-        elif af_mode is AutofocusMode.HARDWARE and af_axes:
-            # otherwise use selected af axes as global autofocus plan
+        elif af_mode is not AutofocusMode.NONE and af_axes:
+            # Both hardware and software autofocus reuse the standard useq autofocus
+            # plan so the runner can inject the selected autofocus strategy.
             replace["autofocus_plan"] = useq.AxesBasedAF(axes=af_axes)
         else:
             replace["autofocus_plan"] = None
@@ -382,7 +387,11 @@ class MDASequenceWidget(QWidget):
             val = val.replace(**replace)
 
         meta = val.metadata.setdefault(PYMMCW_METADATA_KEY, {})
-        meta[PYMMCW_AUTOFOCUS_KEY] = {"mode": af_mode.value, "axes": af_axes}
+        meta[PYMMCW_AUTOFOCUS_KEY] = {
+            "mode": af_mode.value,
+            "axes": af_axes,
+            PYMMCW_SOFTWARE_AUTOFOCUS_KEY: self.softwareAutofocusSettings(),
+        }
 
         return val
 
@@ -404,6 +413,9 @@ class MDASequenceWidget(QWidget):
         )
         if autofocus_meta:
             self.autofocus.setValue(cast(dict[str, Any], autofocus_meta))
+            self.setSoftwareAutofocusSettings(
+                autofocus_meta.get(PYMMCW_SOFTWARE_AUTOFOCUS_KEY)
+            )
         else:
             axis: set[str] = set()
             if value.autofocus_plan:
@@ -420,8 +432,16 @@ class MDASequenceWidget(QWidget):
                     "axes": tuple(axis),
                 }
             )
+            self.setSoftwareAutofocusSettings(default_software_af_settings())
         axis_text = "".join(x for x in value.axis_order if x in self.tab_wdg.usedAxes())
         self.axis_order.setCurrentText(axis_text)
+
+    def softwareAutofocusSettings(self) -> dict[str, Any]:
+        return normalize_software_af_settings(self._software_autofocus_settings)
+
+    def setSoftwareAutofocusSettings(self, value: Any) -> None:
+        self._software_autofocus_settings = normalize_software_af_settings(value)
+        self.valueChanged.emit()
 
     def save(self, file: str | Path | None = None) -> None:
         """Save the current [`useq.MDASequence`][] to a file."""

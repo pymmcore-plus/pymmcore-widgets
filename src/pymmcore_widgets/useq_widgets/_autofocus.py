@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from copy import deepcopy
 from enum import Enum
 from typing import Any
 
@@ -22,6 +23,7 @@ class AutofocusMode(str, Enum):
 
 
 PYMMCW_AUTOFOCUS_KEY = "autofocus"
+PYMMCW_SOFTWARE_AUTOFOCUS_KEY = "software"
 SOFTWARE_AF_DISABLED_TOOLTIP = (
     "Software autofocus cannot be used with absolute Z positions "
     "(TOP_BOTTOM mode)."
@@ -32,6 +34,41 @@ SOFTWARE_AF_OPTIONS_TOOLTIP = (
 SOFTWARE_AF_PENDING_TOOLTIP = (
     "Software autofocus configuration widget is not implemented yet."
 )
+
+DEFAULT_SOFTWARE_AF_SETTINGS: dict[str, Any] = {
+    "backend": "tenengrad",
+    "params": {
+        "search_range_um": 8.0,
+        "step_um": 0.5,
+        "crop_size_px": 512,
+        "exposure_ms": None,
+        "settle_ms": 50.0,
+        "max_retries": 1,
+    },
+}
+
+
+def default_software_af_settings() -> dict[str, Any]:
+    return deepcopy(DEFAULT_SOFTWARE_AF_SETTINGS)
+
+
+def normalize_software_af_settings(value: Any) -> dict[str, Any]:
+    settings = default_software_af_settings()
+    if not isinstance(value, dict):
+        return settings
+
+    backend = value.get("backend")
+    if isinstance(backend, str) and backend:
+        settings["backend"] = backend
+
+    params = value.get("params")
+    if isinstance(params, dict):
+        merged = {**settings["params"], **params}
+        exposure = merged.get("exposure_ms")
+        if exposure in (0, "", False):
+            merged["exposure_ms"] = None
+        settings["params"] = merged
+    return settings
 
 
 class AutofocusControls(QWidget):
