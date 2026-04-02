@@ -51,6 +51,7 @@ class ChannelTable(DataTableWidget):
         # These will change in on_group_changed... so we store the current values.
         self._groups: Mapping[str, Sequence[str]] = {}
         self._config_column: ColumnInfo = self.CONFIG
+        self._loaded_group_warning: str | None = None
 
         # when a new row is inserted, call _on_rows_inserted
         # to update the new values from the _group_combo
@@ -74,6 +75,9 @@ class ChannelTable(DataTableWidget):
             self._group_combo.clear()
             for group_name in groups:
                 self._group_combo.addItem(group_name)
+
+        if self._loaded_group_warning and self._loaded_group_warning in groups:
+            self._set_loaded_group_warning(None)
 
         # update the to show the combobox if there are more than one group
         toolbar = self.toolBar()
@@ -118,16 +122,51 @@ class ChannelTable(DataTableWidget):
             An Iterable of [useq.Channels](https://pymmcore-plus.github.io/useq-schema/schema/axes/#useq.Channel).
         """
         _values = []
+        groups: set[str] = set()
         for v in value:
             if not isinstance(v, useq.Channel):  # pragma: no cover
                 raise TypeError(f"Expected useq.Channel, got {type(v)}")
+            if v.group:
+                groups.add(v.group)
             _values.append(v.model_dump(exclude_unset=True))
+
+        # When loading an MDA sequence, sync the selected group first so the config
+        # column is rebuilt with the correct preset choices before row data are set.
+        if len(groups) == 1:
+            group = next(iter(groups))
+            if group in self._groups:
+                with signals_blocked(self._group_combo):
+                    self._group_combo.setCurrentText(group)
+                self._on_group_changed()
+                self._set_loaded_group_warning(None)
+            else:
+                self._set_loaded_group_warning(group)
+        else:
+            self._set_loaded_group_warning(None)
+
         super().setValue(_values)
 
     # ------------------- Private API -------------------
 
+    def _set_loaded_group_warning(self, group: str | None) -> None:
+        self._loaded_group_warning = group
+        if group:
+            msg = (
+                f"Loaded sequence uses channel group '{group}', but it is not "
+                "available in the current Micro-Manager configuration."
+            )
+            self._group_combo.setToolTip(msg)
+            self._group_combo.setStyleSheet(
+                "QComboBox { border: 1px solid #c2410c; background: #fff7ed; }"
+            )
+        else:
+            self._group_combo.setToolTip("")
+            self._group_combo.setStyleSheet("")
+
     def _on_group_changed(self) -> None:
         group = self._group_combo.currentText()
+        if self._loaded_group_warning and group == self._loaded_group_warning:
+            self._set_loaded_group_warning(None)
         table = self.table()
 
         # set the group column values
