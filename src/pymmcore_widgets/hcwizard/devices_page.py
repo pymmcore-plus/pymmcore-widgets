@@ -224,6 +224,13 @@ class _CurrentDevicesWidget(QWidget):
         )
         idx = self._model.devices.index(device)
         self._model.devices[idx] = dev
+
+        # If a hub was re-initialized, rediscover peripherals
+        if dev.device_type == DeviceType.Hub:
+            self._model.load_available_devices(self._core)
+            dlg2 = PeripheralSetupDlg(dev, self._model, self._core, self)
+            dlg2.exec()
+
         self.rebuild_table()
 
 
@@ -459,13 +466,125 @@ class DevicesPage(ConfigWizardPage):
 
     def initializePage(self) -> None:
         """Called to prepare the page just before it is shown."""
-        err = {}
-        # TODO: there are errors that occur outside of this call that could also be
-        # shown in the tooltip above...
-        self._model.initialize(
-            self._core, on_fail=lambda d, e: err.update({d.name: str(e)})
-        )
+        err = self._two_pass_initialize()
         self._model.mark_clean()
         self.current.rebuild_table(err)
         self.available.rebuild_table()
-        return
+
+    def _two_pass_initialize(self) -> dict[str, str]:
+        """Initialize devices using a two-pass approach.
+
+        First load ALL devices into core (without initializing), read their
+        actual device types from core, then initialize in the correct order:
+        serial ports -> hubs (with peripheral discovery) -> remaining devices.
+        """
+        err: dict[str, str] = {}
+
+        # --- Load phase  ---
+        # Load all devices into core without initializing so we can query
+        # their real device types.  Also load any assigned COM ports that
+        # are not already in the device list (matching Java's loading of
+        # all available serial ports).
+        loaded: set[str] = set()
+        for device in self._model.devices:
+            if device.device_type == DeviceType.Core:
+                continue
+            try:
+                device.load(self._core, reload=True)
+                loaded.add(device.name)
+            except Exception as e:
+                err[device.name] = str(e)
+
+        # Set parent labels (requires all devices to be loaded)
+        for device in self._model.devices:
+            if device.name not in loaded:
+                continue
+            if device.parent_label:
+                try:
+                    self._core.setParentLabel(device.name, device.parent_label)
+                except Exception:
+                    pass
+
+        # Read actual device types from core so we can categorise correctly.
+        # Config-file parsing leaves most devices as DeviceType.Any.
+        for device in self._model.devices:
+            if device.name not in loaded:
+                continue
+            try:
+                device.device_type = self._core.getDeviceType(device.name)
+            except Exception:
+                pass
+
+        # --- Categorise phase ---
+        serial_devs: list[Device] = []
+        hub_devs: list[Device] = []
+        other_devs: list[Device] = []
+
+        for device in self._model.devices:
+            if device.device_type == DeviceType.Core or device.name not in loaded:
+                continue
+            if device.device_type == DeviceType.Serial:
+                serial_devs.append(device)
+            elif device.device_type == DeviceType.Hub:
+                hub_devs.append(device)
+            else:
+                other_devs.append(device)
+
+        # --- Initialize phase ---
+
+        # Phase 1a: Initialize serial ports
+        for device in serial_devs:
+            try:
+                for prop in device.properties:
+                    if prop.is_pre_init:
+                        prop.apply_to_core(self._core, then_update=False)
+                self._core.initializeDevice(device.name)
+                device.initialized = True
+                device.apply_to_core(self._core)
+            except Exception as e:
+                err[device.name] = str(e)
+
+        # Phase 1b: Initialize hub devices, discover peripherals after each
+        for device in hub_devs:
+            try:
+                for prop in device.properties:
+                    if prop.is_pre_init:
+                        prop.apply_to_core(self._core, then_update=False)
+                self._core.initializeDevice(device.name)
+                device.initialized = True
+                device.apply_to_core(self._core)
+            except Exception as e:
+                err[device.name] = str(e)
+            # Reload available devices so hub children become discoverable
+            self._model.load_available_devices(self._core)
+
+        # Phase 2: Initialize remaining devices
+        for device in other_devs:
+            try:
+                for prop in device.properties:
+                    if prop.is_pre_init:
+                        prop.apply_to_core(self._core, then_update=False)
+                self._core.initializeDevice(device.name)
+                device.initialized = True
+                device.apply_to_core(self._core)
+            except Exception as e:
+                err[device.name] = str(e)
+
+        return err
+
+    def validatePage(self) -> bool:
+        """Validate the page when the user clicks Next.
+
+        Refreshes parent hub references from core for devices that may have had
+        their parent set during hub initialization but not in the config file.
+        """
+        for dev in self._model.devices:
+            if dev.name not in self._core.getLoadedDevices():
+                continue
+            try:
+                parent = self._core.getParentLabel(dev.name)
+                if parent and not dev.parent_label:
+                    dev.parent_label = parent
+            except RuntimeError:
+                pass
+        return super().validatePage()  # type: ignore
