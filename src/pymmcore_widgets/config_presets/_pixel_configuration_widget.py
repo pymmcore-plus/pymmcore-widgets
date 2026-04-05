@@ -30,7 +30,7 @@ from superqt.utils import signals_blocked
 from pymmcore_widgets.device_properties._device_property_table import (
     DevicePropertyTable,
 )
-from pymmcore_widgets.device_properties._device_type_filter import DeviceTypeFilters
+from pymmcore_widgets.device_properties._device_type_toolbar import DeviceButtonToolbar
 from pymmcore_widgets.device_properties._property_widget import PropertyWidget
 from pymmcore_widgets.useq_widgets import DataTable, DataTableWidget
 from pymmcore_widgets.useq_widgets._column_info import FloatColumn, TextColumn
@@ -245,7 +245,7 @@ class PixelConfigurationWidget(QWidget):
         # disable if no resolutionID is selected
         self._props_selector.setEnabled(bool(items))
         if not items:
-            self._props_selector._device_filters._check_all()
+            self._props_selector._device_toolbar._select_all()
         if len(items) != 1:
             return
         row = items[0].row()
@@ -558,8 +558,12 @@ class _PropertySelector(QWidget):
 
         self._mmc = mmcore or CMMCorePlus.instance()
 
-        # property table (right wdg)
         self._prop_viewer = _PropertyViewerTable(mmcore=self._mmc)
+
+        self._device_toolbar = DeviceButtonToolbar()
+        self._device_toolbar.checkedDevicesChanged.connect(self._update_filter)
+        self._device_toolbar.readOnlyToggled.connect(self._update_filter)
+        self._device_toolbar.preInitToggled.connect(self._update_filter)
 
         self._filter_text = QLineEdit()
         self._filter_text.setClearButtonEnabled(True)
@@ -579,41 +583,15 @@ class _PropertySelector(QWidget):
 
         splitter = QSplitter(Qt.Orientation.Vertical)
         splitter.setContentsMargins(0, 0, 0, 0)
-        # avoid splitter hiding completely widgets
         splitter.setChildrenCollapsible(False)
         splitter.addWidget(self._prop_viewer)
         splitter.addWidget(table_and_filter)
 
-        right = QWidget()
-        right_layout = QVBoxLayout(right)
-        right_layout.setContentsMargins(0, 0, 0, 0)
-        right_layout.addWidget(splitter)
-
-        self._device_filters = DeviceTypeFilters()
-        self._device_filters.filtersChanged.connect(self._update_filter)
-        self._device_filters.setShowReadOnly(False)
-        self._device_filters._read_only_checkbox.hide()
-        self._device_filters.setShowPreInitProps(False)
-        self._device_filters._pre_init_checkbox.hide()
-
-        left = QWidget()
-        left_layout = QVBoxLayout(left)
-        left_layout.setContentsMargins(0, 0, 0, 0)
-        left_layout.addWidget(self._device_filters)
-        left.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Expanding)
-
-        # central widget
-        central_wdg = QWidget()
-        central_layout = QHBoxLayout(central_wdg)
-        central_layout.setContentsMargins(0, 0, 0, 0)
-        central_layout.setSpacing(0)
-        central_layout.addWidget(left)
-        central_layout.addWidget(right)
-
         # main layout
         main_layout = QVBoxLayout(self)
         main_layout.setContentsMargins(0, 0, 0, 0)
-        main_layout.addWidget(central_wdg)
+        main_layout.addWidget(self._device_toolbar)
+        main_layout.addWidget(splitter)
 
         # connect
         self._mmc.events.systemConfigurationLoaded.connect(self._update_filter)
@@ -682,12 +660,17 @@ class _PropertySelector(QWidget):
 
     @Slot()
     def _update_filter(self) -> None:
+        included = self._device_toolbar.checkedDeviceTypes()
+        if not included:
+            for row in range(self._prop_table.rowCount()):
+                self._prop_table.hideRow(row)
+            return
         filt = self._filter_text.text().lower()
         self._prop_table.filterDevices(
             filt,
-            exclude_devices=self._device_filters.filters(),
-            include_read_only=self._device_filters.showReadOnly(),
-            include_pre_init=self._device_filters.showPreInitProps(),
+            include_devices=included,
+            include_read_only=self._device_toolbar.act_show_read_only.isChecked(),
+            include_pre_init=self._device_toolbar.act_show_pre_init.isChecked(),
         )
 
     @Slot()
