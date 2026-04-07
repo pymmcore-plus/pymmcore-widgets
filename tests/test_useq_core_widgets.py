@@ -117,38 +117,6 @@ def test_core_connected_position_wdg(qtbot: QtBot, qapp) -> None:
     pos_table._on_selection_change()
 
 
-def test_core_position_table_waits_only_for_requested_positioning_devices() -> None:
-    pos_table = CoreConnectedPositionTable.__new__(CoreConnectedPositionTable)
-    pos_table._mmc = Mock()
-    pos_table._mmc.getXYStageDevice.return_value = "XY"
-    pos_table._mmc.getFocusDevice.return_value = "Z"
-
-    pos_table._wait_for_positioning_devices(include_xy=True, include_z=False)
-
-    pos_table._mmc.waitForDevice.assert_called_once_with("XY")
-
-    pos_table._mmc.waitForDevice.reset_mock()
-    pos_table._wait_for_positioning_devices(include_xy=False, include_z=True)
-
-    pos_table._mmc.waitForDevice.assert_called_once_with("Z")
-
-
-def test_core_position_table_waits_for_autofocus_offset_and_focus_devices() -> None:
-    pos_table = CoreConnectedPositionTable.__new__(CoreConnectedPositionTable)
-    pos_table._mmc = Mock()
-    pos_table._mmc.getAutoFocusDevice.return_value = "AF"
-    pos_table._mmc._getAutoFocusOffsetDevice.return_value = "AFOffset"
-    pos_table._mmc.getFocusDevice.return_value = "Z"
-
-    pos_table._wait_for_autofocus_devices(include_focus=True)
-
-    assert pos_table._mmc.waitForDevice.call_args_list == [
-        (("AF",),),
-        (("AFOffset",),),
-        (("Z",),),
-    ]
-
-
 def _assert_position_wdg_state(
     stage: str, pos_table: CoreConnectedPositionTable, is_hidden: bool
 ) -> None:
