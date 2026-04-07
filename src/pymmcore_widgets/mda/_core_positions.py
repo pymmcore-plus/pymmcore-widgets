@@ -431,7 +431,7 @@ class CoreConnectedPositionTable(PositionTable):
                         self._mmc.enableContinuousFocus(False)
                         self._perform_autofocus()
                         self._mmc.enableContinuousFocus(af_engaged)
-                        self._wait_for_autofocus_devices(include_focus=True)
+                        self._wait_for_autofocus_devices()
                     except RuntimeError as e:
                         logger.warning("Hardware autofocus failed. %s", e)
 
@@ -440,12 +440,12 @@ class CoreConnectedPositionTable(PositionTable):
         @retry(exceptions=RuntimeError, tries=3, logger=logger.warning)
         def _perform_full_focus() -> None:
             self._mmc.fullFocus()
-            self._wait_for_autofocus_devices(include_focus=True)
+            self._wait_for_autofocus_devices()
 
-        self._wait_for_autofocus_devices(include_focus=True)
+        self._wait_for_autofocus_devices()
         _perform_full_focus()
 
-    def _wait_for_autofocus_devices(self, *, include_focus: bool = False) -> None:
+    def _wait_for_autofocus_devices(self) -> None:
         if af_dev := self._mmc.getAutoFocusDevice():
             self._mmc.waitForDevice(af_dev)
 
@@ -454,7 +454,7 @@ class CoreConnectedPositionTable(PositionTable):
                 if offset_dev := offset_getter(af_dev):
                     self._mmc.waitForDevice(offset_dev)
 
-        if include_focus and (z_dev := self._mmc.getFocusDevice()):
+        if z_dev := self._mmc.getFocusDevice():
             self._mmc.waitForDevice(z_dev)
 
     def _set_row_xy_enabled(self, row: int, enabled: bool, tip: str = "") -> None:
