@@ -449,6 +449,11 @@ class CoreConnectedPositionTable(PositionTable):
         if af_dev := self._mmc.getAutoFocusDevice():
             self._mmc.waitForDevice(af_dev)
 
+            # FIXME:
+            # it would be much better if pymmcore-plus or CMMCore directly
+            # had a better solution for waiting on the offset device associated with
+            # an autofocus device.  For now, we we "extend" pymmcore-plus's internal
+            # hack and access the private _getAutoFocusOffsetDevice to await it.
             offset_getter = getattr(self._mmc, "_getAutoFocusOffsetDevice", None)
             if callable(offset_getter):
                 if offset_dev := offset_getter(af_dev):
