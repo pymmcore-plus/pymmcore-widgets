@@ -5,7 +5,6 @@ from time import perf_counter, sleep
 from typing import TYPE_CHECKING, Any, Protocol
 
 import numpy as np
-from pymmcore_plus import CMMCorePlus
 from pymmcore_plus._logger import logger
 from pymmcore_plus.mda import MDAEngine
 from qtpy.QtWidgets import (
@@ -35,6 +34,7 @@ from pymmcore_widgets.useq_widgets._mda_sequence import PYMMCW_METADATA_KEY
 if TYPE_CHECKING:
     from collections.abc import Callable, Iterable
 
+    from pymmcore_plus import CMMCorePlus
     from pymmcore_plus.mda._protocol import PImagePayload
 
 
@@ -123,7 +123,7 @@ def _z_positions(start_z: float, search_range_um: float, step_um: float) -> list
     if search_range_um <= 0:
         return [start_z]
     half_range = search_range_um / 2
-    n_steps = max(int(round(search_range_um / step_um)), 1)
+    n_steps = max(round(search_range_um / step_um), 1)
     positions = np.linspace(start_z - half_range, start_z + half_range, n_steps + 1)
     return [float(x) for x in positions]
 
@@ -144,9 +144,7 @@ def _software_af_failure_label(settings: dict[str, Any]) -> str:
     }.get(str(policy), str(policy))
 
 
-def run_software_autofocus(
-    core: CMMCorePlus, settings: Any
-) -> SoftwareAutofocusResult:
+def run_software_autofocus(core: CMMCorePlus, settings: Any) -> SoftwareAutofocusResult:
     options = normalize_software_af_settings(settings)
     params = options["params"]
     focus_device = core.getFocusDevice()
@@ -314,8 +312,7 @@ class SoftwareAutofocusDialog(QDialog):
         self._test_btn.clicked.connect(self._on_test_clicked)
 
         button_box = QDialogButtonBox(
-            QDialogButtonBox.StandardButton.Ok
-            | QDialogButtonBox.StandardButton.Cancel
+            QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel
         )
         button_box.accepted.connect(self.accept)
         button_box.rejected.connect(self.reject)
@@ -438,7 +435,9 @@ class SoftwareAutofocusMDAEngine(MDAEngine):
         af_meta = sequence.metadata.get(PYMMCW_METADATA_KEY, {}).get(
             PYMMCW_AUTOFOCUS_KEY, {}
         )
-        self._af_mode = AutofocusMode(str(af_meta.get("mode", AutofocusMode.NONE.value)))
+        self._af_mode = AutofocusMode(
+            str(af_meta.get("mode", AutofocusMode.NONE.value))
+        )
         self._software_af_settings = normalize_software_af_settings(
             af_meta.get(PYMMCW_SOFTWARE_AUTOFOCUS_KEY)
         )
@@ -449,9 +448,8 @@ class SoftwareAutofocusMDAEngine(MDAEngine):
 
     def exec_event(self, event: MDAEvent) -> Iterable[PImagePayload | None]:
         action = getattr(event, "action", None)
-        if (
-            self._af_mode is AutofocusMode.SOFTWARE
-            and isinstance(action, HardwareAutofocus)
+        if self._af_mode is AutofocusMode.SOFTWARE and isinstance(
+            action, HardwareAutofocus
         ):
             try:
                 result = run_software_autofocus(self.mmcore, self._software_af_settings)
@@ -472,8 +470,8 @@ class SoftwareAutofocusMDAEngine(MDAEngine):
             else:
                 self._af_succeeded = True
                 p_idx = event.index.get("p", None)
-                self._z_correction[p_idx] = result.correction_um + self._z_correction.get(
-                    p_idx, 0.0
+                self._z_correction[p_idx] = (
+                    result.correction_um + self._z_correction.get(p_idx, 0.0)
                 )
                 logger.info("Software autofocus succeeded: %s", result.summary())
             return ()

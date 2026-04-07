@@ -412,7 +412,7 @@ class MDASequenceWidget(QWidget):
             PYMMCW_AUTOFOCUS_KEY, {}
         )
         if autofocus_meta:
-            self.autofocus.setValue(cast(dict[str, Any], autofocus_meta))
+            self.autofocus.setValue(cast("dict[str, Any]", autofocus_meta))
             self.setSoftwareAutofocusSettings(
                 autofocus_meta.get(PYMMCW_SOFTWARE_AUTOFOCUS_KEY)
             )
@@ -427,7 +427,9 @@ class MDASequenceWidget(QWidget):
             self.autofocus.setValue(
                 {
                     "mode": (
-                        AutofocusMode.HARDWARE.value if axis else AutofocusMode.NONE.value
+                        AutofocusMode.HARDWARE.value
+                        if axis
+                        else AutofocusMode.NONE.value
                     ),
                     "axes": tuple(axis),
                 }

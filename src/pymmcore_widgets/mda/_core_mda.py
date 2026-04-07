@@ -29,15 +29,15 @@ from pymmcore_widgets.useq_widgets._positions import AF_PER_POS_TOOLTIP
 from pymmcore_widgets.useq_widgets._time import TimePlanWidget
 from pymmcore_widgets.useq_widgets._z import Mode
 
-from ._core_channels import CoreConnectedChannelTable
-from ._core_grid import CoreConnectedGridPlanWidget
-from ._core_positions import AF_UNAVAILABLE, CoreConnectedPositionTable
-from ._core_z import CoreConnectedZPlanWidget
 from ._autofocus import (
     SoftwareAutofocusDialog,
     SoftwareAutofocusMDAEngine,
     run_software_autofocus,
 )
+from ._core_channels import CoreConnectedChannelTable
+from ._core_grid import CoreConnectedGridPlanWidget
+from ._core_positions import AF_UNAVAILABLE, CoreConnectedPositionTable
+from ._core_z import CoreConnectedZPlanWidget
 from ._save_widget import SaveGroupBox
 
 if TYPE_CHECKING:
@@ -335,7 +335,8 @@ class MDAWidget(MDASequenceWidget):
         absolute z plan is selected.
         """
         z_plan_allows_af = not (
-            self.tab_wdg.isChecked(self.z_plan) and self.z_plan.mode() == Mode.TOP_BOTTOM
+            self.tab_wdg.isChecked(self.z_plan)
+            and self.z_plan.mode() == Mode.TOP_BOTTOM
         )
         af_device = self._get_autofocus_device()
         hardware_tooltip = self._get_tooltip(self.af_axis)
@@ -347,7 +348,9 @@ class MDAWidget(MDASequenceWidget):
         )
 
         # update the autofocus per position widget
-        af_per_pos_enabled = bool(af_device) and self.af_axis.mode() is AutofocusMode.HARDWARE
+        af_per_pos_enabled = (
+            bool(af_device) and self.af_axis.mode() is AutofocusMode.HARDWARE
+        )
         self.stage_positions.af_per_position.setEnabled(af_per_pos_enabled)
         # set tooltip af_per_position
         self.stage_positions.af_per_position.setToolTip(
@@ -359,13 +362,17 @@ class MDAWidget(MDASequenceWidget):
     def _get_tooltip(self, wdg: QWidget) -> str:
         """Return the tooltip for the autofocus widgets."""
         z_plan_blocks_af = (
-            self.tab_wdg.isChecked(self.z_plan) and self.z_plan.mode() == Mode.TOP_BOTTOM
+            self.tab_wdg.isChecked(self.z_plan)
+            and self.z_plan.mode() == Mode.TOP_BOTTOM
         )
         if z_plan_blocks_af:
             return AF_DISABLED_TOOLTIP
 
         # if there is no autofocus device, return the unavailable tooltip
-        if not self._mmc.getAutoFocusDevice() and self.af_axis.mode() is not AutofocusMode.SOFTWARE:
+        if (
+            not self._mmc.getAutoFocusDevice()
+            and self.af_axis.mode() is not AutofocusMode.SOFTWARE
+        ):
             return AF_UNAVAILABLE
         # if the widget is the autofocus axis, return the autofocus axis tooltip
         if wdg is self.af_axis:

@@ -25,12 +25,9 @@ class AutofocusMode(str, Enum):
 PYMMCW_AUTOFOCUS_KEY = "autofocus"
 PYMMCW_SOFTWARE_AUTOFOCUS_KEY = "software"
 SOFTWARE_AF_DISABLED_TOOLTIP = (
-    "Software autofocus cannot be used with absolute Z positions "
-    "(TOP_BOTTOM mode)."
+    "Software autofocus cannot be used with absolute Z positions (TOP_BOTTOM mode)."
 )
-SOFTWARE_AF_OPTIONS_TOOLTIP = (
-    "Open the software autofocus configuration widget."
-)
+SOFTWARE_AF_OPTIONS_TOOLTIP = "Open the software autofocus configuration widget."
 SOFTWARE_AF_PENDING_TOOLTIP = (
     "Software autofocus configuration widget is not implemented yet."
 )
@@ -206,7 +203,9 @@ class AutofocusControls(QWidget):
         for widget in (self.use_af_p, self.use_af_t, self.use_af_g):
             widget.setEnabled(axes_enabled)
             widget.setToolTip(tooltip)
-        self._configure.setEnabled(mode is AutofocusMode.SOFTWARE and self._axes_allowed)
+        self._configure.setEnabled(
+            mode is AutofocusMode.SOFTWARE and self._axes_allowed
+        )
         if mode is AutofocusMode.SOFTWARE:
             self._configure.setToolTip(SOFTWARE_AF_OPTIONS_TOOLTIP)
         elif mode is AutofocusMode.HARDWARE and not self._hardware_available:
