@@ -156,12 +156,8 @@ class ChannelTable(DataTableWidget):
                 "available in the current Micro-Manager configuration."
             )
             self._group_combo.setToolTip(msg)
-            self._group_combo.setStyleSheet(
-                "QComboBox { border: 1px solid #c2410c; background: #fff7ed; }"
-            )
         else:
             self._group_combo.setToolTip("")
-            self._group_combo.setStyleSheet("")
 
     def _on_group_changed(self) -> None:
         group = self._group_combo.currentText()

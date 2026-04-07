@@ -94,10 +94,8 @@ def test_channel_table_warns_when_loaded_group_is_missing(qtbot: QtBot):
 
     assert table._loaded_group_warning == "MissingGroup"
     assert "MissingGroup" in table._group_combo.toolTip()
-    assert "border" in table._group_combo.styleSheet()
 
     table.setChannelGroups({"Channel": ["DAPI"], "MissingGroup": ["Preset"]})
 
     assert table._loaded_group_warning is None
     assert table._group_combo.toolTip() == ""
-    assert table._group_combo.styleSheet() == ""
