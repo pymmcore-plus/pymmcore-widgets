@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import warnings
 from collections import Counter
 from typing import TYPE_CHECKING, Any
 
@@ -51,7 +52,6 @@ class ChannelTable(DataTableWidget):
         # These will change in on_group_changed... so we store the current values.
         self._groups: Mapping[str, Sequence[str]] = {}
         self._config_column: ColumnInfo = self.CONFIG
-        self._loaded_group_warning: str | None = None
 
         # when a new row is inserted, call _on_rows_inserted
         # to update the new values from the _group_combo
@@ -75,9 +75,6 @@ class ChannelTable(DataTableWidget):
             self._group_combo.clear()
             for group_name in groups:
                 self._group_combo.addItem(group_name)
-
-        if self._loaded_group_warning and self._loaded_group_warning in groups:
-            self._set_loaded_group_warning(None)
 
         # update the to show the combobox if there are more than one group
         toolbar = self.toolBar()
@@ -138,31 +135,19 @@ class ChannelTable(DataTableWidget):
                 with signals_blocked(self._group_combo):
                     self._group_combo.setCurrentText(group)
                 self._on_group_changed()
-                self._set_loaded_group_warning(None)
             else:
-                self._set_loaded_group_warning(group)
-        else:
-            self._set_loaded_group_warning(None)
+                warnings.warn(
+                    f"Loaded sequence uses channel group '{group}', but it is not "
+                    "available in the current Micro-Manager configuration.",
+                    stacklevel=2,
+                )
 
         super().setValue(_values)
 
     # ------------------- Private API -------------------
 
-    def _set_loaded_group_warning(self, group: str | None) -> None:
-        self._loaded_group_warning = group
-        if group:
-            msg = (
-                f"Loaded sequence uses channel group '{group}', but it is not "
-                "available in the current Micro-Manager configuration."
-            )
-            self._group_combo.setToolTip(msg)
-        else:
-            self._group_combo.setToolTip("")
-
     def _on_group_changed(self) -> None:
         group = self._group_combo.currentText()
-        if self._loaded_group_warning and group == self._loaded_group_warning:
-            self._set_loaded_group_warning(None)
         table = self.table()
 
         # set the group column values

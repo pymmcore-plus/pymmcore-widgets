@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+import pytest
 import useq
 from qtpy.QtWidgets import QComboBox
 
@@ -82,7 +83,6 @@ def test_channel_table_syncs_loaded_group(qtbot: QtBot):
     assert table._group_combo.currentText() == "LightPath"
     assert table.value()[0].group == "LightPath"
     assert table.value()[0].config == "Cy5"
-    assert table._loaded_group_warning is None
 
 
 def test_channel_table_warns_when_loaded_group_is_missing(qtbot: QtBot):
@@ -90,12 +90,5 @@ def test_channel_table_warns_when_loaded_group_is_missing(qtbot: QtBot):
     qtbot.addWidget(table)
     table.setChannelGroups({"Channel": ["DAPI"]})
 
-    table.setValue([useq.Channel(group="MissingGroup", config="Preset")])
-
-    assert table._loaded_group_warning == "MissingGroup"
-    assert "MissingGroup" in table._group_combo.toolTip()
-
-    table.setChannelGroups({"Channel": ["DAPI"], "MissingGroup": ["Preset"]})
-
-    assert table._loaded_group_warning is None
-    assert table._group_combo.toolTip() == ""
+    with pytest.warns(UserWarning, match="MissingGroup"):
+        table.setValue([useq.Channel(group="MissingGroup", config="Preset")])
