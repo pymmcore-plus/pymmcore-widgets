@@ -196,6 +196,8 @@ ignore = [
     "CHANGELOG.md",
     "uv.lock",
     "justfile",
+    "AGENTS.md",
+    "CLAUDE.md",
 ]
 
 [tool.typos.default]
