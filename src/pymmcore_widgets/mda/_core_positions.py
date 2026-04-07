@@ -401,21 +401,16 @@ class CoreConnectedPositionTable(PositionTable):
             af_engaged = self._mmc.isContinuousFocusLocked()
             af_offset = self._mmc.getAutoFocusOffset() if af_engaged else None
 
-            if self._mmc.getXYStageDevice():
+            if xy_dev := self._mmc.getXYStageDevice():
                 x = data.get(self.X.key, self._mmc.getXPosition())
                 y = data.get(self.Y.key, self._mmc.getYPosition())
                 self._mmc.setXYPosition(x, y)
+                self._mmc.waitForDevice(xy_dev)
 
-            if self.include_z.isChecked() and self._mmc.getFocusDevice():
+            if self.include_z.isChecked() and (focus_def := self._mmc.getFocusDevice()):
                 z = data.get(self.Z.key, self._mmc.getZPosition())
                 self._mmc.setZPosition(z)
-
-            self._wait_for_positioning_devices(
-                include_xy=bool(self._mmc.getXYStageDevice()),
-                include_z=bool(
-                    self.include_z.isChecked() and self._mmc.getFocusDevice()
-                ),
-            )
+                self._mmc.waitForDevice(focus_def)
 
             # HANDLE AUTOFOCUS OFFSET___________________________________________________
 
@@ -449,14 +444,6 @@ class CoreConnectedPositionTable(PositionTable):
 
         self._wait_for_autofocus_devices(include_focus=True)
         _perform_full_focus()
-
-    def _wait_for_positioning_devices(
-        self, *, include_xy: bool = False, include_z: bool = False
-    ) -> None:
-        if include_xy and (xy_dev := self._mmc.getXYStageDevice()):
-            self._mmc.waitForDevice(xy_dev)
-        if include_z and (z_dev := self._mmc.getFocusDevice()):
-            self._mmc.waitForDevice(z_dev)
 
     def _wait_for_autofocus_devices(self, *, include_focus: bool = False) -> None:
         if af_dev := self._mmc.getAutoFocusDevice():
