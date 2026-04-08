@@ -199,11 +199,8 @@ class MDAWidget(MDASequenceWidget):
             # not be in the event
             if "p" not in val.axis_order:
                 axis_order = list(val.axis_order)
-                # add the "p" axis at the beginning or after the "t" as the default
-                if "t" in axis_order:
-                    axis_order.insert(axis_order.index("t") + 1, "p")
-                else:
-                    axis_order.insert(0, "p")
+                # Always insert "p" at the front
+                axis_order.insert(0, "p")
                 replace["axis_order"] = tuple(axis_order)
 
         if replace:
