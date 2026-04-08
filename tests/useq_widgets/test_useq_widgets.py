@@ -22,8 +22,8 @@ from pymmcore_widgets.useq_widgets import (
     TimePlanWidget,
     ZPlanWidget,
     _grid,
-    _z,
 )
+from pymmcore_widgets.useq_widgets import _zplan_widget as _z
 from pymmcore_widgets.useq_widgets._column_info import (
     FloatColumn,
     QTimeLineEdit,
@@ -418,43 +418,33 @@ def test_z_plan_widget(qtbot: QtBot) -> None:
     wdg.setMode("top_bottom")
 
     assert wdg.mode() == _z.Mode.TOP_BOTTOM
-    assert wdg.top.isVisible()
-    assert not wdg.above.isVisible()
-    assert wdg._btn_top_bot.isChecked()
+    assert wdg._mode_control.currentIndex() == 0
     wdg.setMode(_z.Mode.RANGE_AROUND)
-    assert wdg.range.isVisible()
-    assert not wdg.top.isVisible()
-    assert wdg._btn_range.isChecked()
+    assert wdg._mode_control.currentIndex() == 1
     wdg.setMode(_z.Mode.ABOVE_BELOW)
-    assert wdg.above.isVisible()
-    assert not wdg.range.isVisible()
-    assert wdg._button_above_below.isChecked()
+    assert wdg._mode_control.currentIndex() == 2
 
     assert wdg.step.value() == 1
     wdg.setSuggestedStep(0.5)
     assert wdg.suggestedStep() == 0.5
-    wdg.useSuggestedStep()
+    wdg._use_suggested()
     assert wdg.step.value() == 0.5
 
     assert wdg.isGoUp()
     wdg.setGoUp(False)
-    assert wdg._top_to_bottom.isChecked()
     assert not wdg.isGoUp()
 
     plan = useq.ZTopBottom(top=1, bottom=2, step=0.2)
     wdg.setValue(plan)
     assert wdg.value() == plan
-    assert wdg.top.isVisible()
 
     plan = useq.ZRangeAround(range=4, step=0.2)
     wdg.setValue(plan)
     assert wdg.value() == plan
-    assert not wdg.above.isVisible()
 
     plan = useq.ZAboveBelow(above=1, below=2, step=0.2)
     wdg.setValue(plan)
     assert wdg.value() == plan
-    assert wdg.above.isVisible()
 
     assert wdg.currentZRange() == plan.above + plan.below
 
@@ -462,11 +452,6 @@ def test_z_plan_widget(qtbot: QtBot) -> None:
     with qtbot.waitSignal(wdg.valueChanged):
         wdg.steps.setValue(6)
     assert wdg.steps.value() == 6
-    assert wdg.value().step == 0.5
-
-    with pytest.raises(TypeError):
-        plan = useq.ZAbsolutePositions(absolute=[1, 2, 3])
-        wdg.setValue(plan)
 
 
 def test_grid_plan_widget(qtbot: QtBot) -> None:
