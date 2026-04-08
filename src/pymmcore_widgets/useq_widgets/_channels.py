@@ -135,7 +135,7 @@ class ChannelTable(DataTableWidget):
                 with signals_blocked(self._group_combo):
                     self._group_combo.setCurrentText(group)
                 self._on_group_changed()
-            else:
+            elif self._groups:
                 warnings.warn(
                     f"Loaded sequence uses channel group '{group}', but it is not "
                     "available in the current Micro-Manager configuration.",
