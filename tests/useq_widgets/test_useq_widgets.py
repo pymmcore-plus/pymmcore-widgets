@@ -140,6 +140,7 @@ MDA_ZT = useq.MDASequence(
 
 def test_mda_wdg(qtbot: QtBot):
     wdg = MDASequenceWidget()
+    wdg.channels.setChannelGroups({"Channel": ["DAPI", "FITC"]})
     qtbot.addWidget(wdg)
     wdg.show()
 
