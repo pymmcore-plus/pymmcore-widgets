@@ -570,7 +570,7 @@ def test_mda_no_pos_set(global_mmcore: CMMCorePlus, qtbot: QtBot):
     assert round(wdg.value().stage_positions[0].y) == 20
     assert round(wdg.value().stage_positions[0].z) == 30
 
-    assert "p" in wdg.value().axis_order
+    assert wdg.value().axis_order[0] == "p"
 
 
 @pytest.mark.parametrize("ext", ["json", "yaml"])
