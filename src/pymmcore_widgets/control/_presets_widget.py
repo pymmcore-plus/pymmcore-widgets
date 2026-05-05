@@ -140,6 +140,8 @@ class PresetsWidget(QWidget):
 
     @Slot(str, str, object)
     def _on_property_changed(self, device: str, property: str, value: str) -> None:
+        if not device:
+            return
         if (device, property) not in self.dev_prop:
             if self._mmc.getDeviceType(device) != DeviceType.StateDevice:
                 return
