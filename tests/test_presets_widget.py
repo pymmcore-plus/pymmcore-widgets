@@ -76,3 +76,18 @@ def test_preset_widget(qtbot: QtBot, global_mmcore: CMMCorePlus) -> None:
 
     global_mmcore.deleteConfigGroup("Camera")
     assert "Camera" not in global_mmcore.getAvailableConfigGroups()
+
+
+def test_preset_widget_ignores_empty_device(
+    qtbot: QtBot, global_mmcore: CMMCorePlus
+) -> None:
+    """propertyChanged with empty device label must not raise RuntimeError.
+
+    The C++ core can emit propertyChanged("", ...) for internal state changes
+    with no associated device (e.g. during MDA teardown).  The widget must
+    guard against calling getDeviceType("") in that case.
+    """
+    wdg = PresetsWidget("Channel")
+    qtbot.addWidget(wdg)
+    # Should not raise RuntimeError: No device with label ""
+    global_mmcore.events.propertyChanged.emit("", "State", "1")
