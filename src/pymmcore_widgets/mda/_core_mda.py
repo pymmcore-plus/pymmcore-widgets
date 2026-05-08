@@ -26,7 +26,7 @@ from pymmcore_widgets.useq_widgets._mda_sequence import (
 )
 from pymmcore_widgets.useq_widgets._positions import AF_PER_POS_TOOLTIP
 from pymmcore_widgets.useq_widgets._time import TimePlanWidget
-from pymmcore_widgets.useq_widgets._z import Mode
+from pymmcore_widgets.useq_widgets._zplan_widget import Mode
 
 from ._core_channels import CoreConnectedChannelTable
 from ._core_grid import CoreConnectedGridPlanWidget
