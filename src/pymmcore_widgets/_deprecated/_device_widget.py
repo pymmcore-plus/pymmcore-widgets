@@ -145,7 +145,8 @@ class StateDeviceWidget(DeviceWidget):
         self._combo.currentIndexChanged.connect(self._on_combo_changed)
         self._changing = False
         self._refresh_choices()
-        self._combo.setCurrentText(self._mmc.getStateLabel(self._device_label))
+        with signals_blocked(self._combo):
+            self._combo.setCurrentText(self._mmc.getStateLabel(self._device_label))
 
         self.setLayout(QHBoxLayout())
         self.layout().setContentsMargins(0, 0, 0, 0)
