@@ -375,12 +375,13 @@ class StageWidget(QWidget):
         self._set_as_default()
 
     def _set_as_default(self) -> None:
-        if self._dtype is DeviceType.XYStage:
-            if self._mmc.getXYStageDevice() == self._device:
-                self._set_as_default_btn.setChecked(True)
-        elif self._dtype is DeviceType.Stage:
-            if self._mmc.getFocusDevice() == self._device:
-                self._set_as_default_btn.setChecked(True)
+        with signals_blocked(self._set_as_default_btn):
+            if self._dtype is DeviceType.XYStage:
+                if self._mmc.getXYStageDevice() == self._device:
+                    self._set_as_default_btn.setChecked(True)
+            elif self._dtype is DeviceType.Stage:
+                if self._mmc.getFocusDevice() == self._device:
+                    self._set_as_default_btn.setChecked(True)
 
     @Slot(bool)
     def _on_radiobutton_toggled(self, state: bool) -> None:
