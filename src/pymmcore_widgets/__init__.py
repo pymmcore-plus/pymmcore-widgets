@@ -41,7 +41,7 @@ __all__ = [
     "PropertiesWidget",
     "PropertyBrowser",
     "PropertyWidget",
-    "ShuttersWidget",
+    "ShutterWidget",
     "SnapButton",
     "StageExplorer",
     "StageWidget",
@@ -69,7 +69,7 @@ from .control import (
     LiveButton,
     ObjectivesWidget,
     PresetsWidget,
-    ShuttersWidget,
+    ShutterWidget,
     SnapButton,
     StageExplorer,
     StageWidget,
@@ -137,4 +137,11 @@ def __getattr__(name: str) -> object:
             stacklevel=2,
         )
         return ObjectivesPixelConfigurationWidget
+    if name == "ShuttersWidget":
+        warnings.warn(
+            "'ShuttersWidget' is deprecated, use 'ShutterWidget' instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        return ShutterWidget
     raise AttributeError(f"module {__name__} has no attribute {name}")

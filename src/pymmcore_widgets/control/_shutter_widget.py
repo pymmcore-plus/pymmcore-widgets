@@ -20,8 +20,8 @@ COLOR_TYPE = Union[
 ]
 
 
-class ShuttersWidget(QWidget):
-    """A Widget to control shutters and Micro-Manager autoshutter.
+class ShutterWidget(QWidget):
+    """A Widget to control a Micro-Manager shutter.
 
     Parameters
     ----------

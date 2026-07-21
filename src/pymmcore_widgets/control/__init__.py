@@ -8,7 +8,7 @@ from ._live_button_widget import LiveButton
 from ._load_system_cfg_widget import ConfigurationWidget
 from ._objective_widget import ObjectivesWidget
 from ._presets_widget import PresetsWidget
-from ._shutter_widget import ShuttersWidget
+from ._shutter_widget import ShutterWidget
 from ._snap_button_widget import SnapButton
 from ._stage_explorer import StageExplorer
 from ._stage_widget import StageWidget
@@ -23,7 +23,7 @@ __all__ = [
     "LiveButton",
     "ObjectivesWidget",
     "PresetsWidget",
-    "ShuttersWidget",
+    "ShutterWidget",
     "SnapButton",
     "StageExplorer",
     "StageWidget",

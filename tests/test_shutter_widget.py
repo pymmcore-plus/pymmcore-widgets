@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING
 
 import pytest
 
-from pymmcore_widgets.control._shutter_widget import ShuttersWidget
+from pymmcore_widgets.control._shutter_widget import ShutterWidget
 from tests._utils import wait_signal
 
 if TYPE_CHECKING:
@@ -17,8 +17,8 @@ def _make_shutter(
     mmcore: CMMCorePlus,
     device: str = "Shutter",
     autoshutter: bool = True,
-) -> ShuttersWidget:
-    wdg = ShuttersWidget(
+) -> ShutterWidget:
+    wdg = ShutterWidget(
         device,
         autoshutter=autoshutter,
         button_text_open=f"{device} opened",
