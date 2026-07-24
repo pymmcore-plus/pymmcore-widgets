@@ -144,10 +144,17 @@ def get_next_available_path(requested_path: Path | str, min_digits: int = 3) -> 
         extension = ".ome" + extension
         stem = stem[:-4]
 
-    # look for ANY existing files in the folder that follow the pattern of
-    # stem_###.extension
+    # remove any existing counter from the stem to get the base name
+    requested_num = None
+    if match := NUM_SPLIT.match(stem):
+        base_stem, num = match.groups()
+        if num:
+            requested_num = int(num)
+            stem = base_stem
+
+    # look for existing files in the folder that share the same base stem
     current_max = 0
-    for existing in directory.glob(f"*{extension}"):
+    for existing in directory.glob(f"{stem}*{extension}"):
         # cannot use existing.stem because of the ome (2-part-extension) special case
         base = existing.name.replace(extension, "")
         # if the base name ends with a number, increase the current_max
@@ -163,14 +170,9 @@ def get_next_available_path(requested_path: Path | str, min_digits: int = 3) -> 
         return requested_path
 
     current_max += 1
-    # otherwise return the next path greater than the current_max
-    # remove any existing counter from the stem
-    if match := NUM_SPLIT.match(stem):
-        stem, num = match.groups()
-        if num:
-            # if the requested path has a counter that is greater than any other files
-            # use it
-            current_max = max(int(num), current_max)
+    # if the requested path has a counter that is greater than any other files, use it
+    if requested_num is not None:
+        current_max = max(requested_num, current_max)
     return directory / f"{stem}_{current_max:0{min_digits}d}{extension}"
 
 
