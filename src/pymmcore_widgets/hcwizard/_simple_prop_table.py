@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from pymmcore_plus import CMMCorePlus, Keyword
-from qtpy.QtCore import QSize, Signal
+from qtpy.QtCore import Signal
 from qtpy.QtWidgets import QComboBox, QTableWidget, QTableWidgetItem, QWidget
 
 from pymmcore_widgets.device_properties._property_widget import PropertyWidget
@@ -54,15 +54,6 @@ class PropTable(QTableWidget):
         self.verticalHeader().setDefaultSectionSize(24)
         self.setColumnWidth(0, 200)
 
-    def sizeHint(self) -> QSize:
-        """Return a size hint that accounts for the number of rows."""
-        hint = super().sizeHint()
-        if self.rowCount() > 0:
-            header_h = self.horizontalHeader().height()
-            rows_h = sum(self.rowHeight(r) for r in range(self.rowCount()))
-            hint.setHeight(header_h + rows_h + 2)
-        return hint
-
     def iterRows(self) -> Iterator[tuple[str, str]]:
         """Iterate over rows, yielding (prop_name, prop_value)."""
         for r in range(self.rowCount()):
@@ -98,3 +89,6 @@ class PropTable(QTableWidget):
                     device, prop_name, mmcore=self._core, connect_core=False
                 )
             self.setCellWidget(i, 1, wdg)
+        header_h = self.horizontalHeader().height()
+        rows_h = self.verticalHeader().defaultSectionSize() * self.rowCount()
+        self.setFixedHeight(header_h + rows_h + 2)

@@ -1,3 +1,4 @@
+import logging
 from typing import cast
 
 from pymmcore_plus import CMMCorePlus, DeviceType
@@ -7,6 +8,7 @@ from qtpy.QtWidgets import (
     QComboBox,
     QHBoxLayout,
     QLabel,
+    QPushButton,
     QTableWidget,
     QTableWidgetItem,
     QVBoxLayout,
@@ -14,6 +16,8 @@ from qtpy.QtWidgets import (
 from superqt.utils import signals_blocked
 
 from ._base_page import ConfigWizardPage
+
+logger = logging.getLogger(__name__)
 
 
 class _LabelTable(QTableWidget):
@@ -71,9 +75,16 @@ class LabelsPage(ConfigWizardPage):
         self.dev_combo = QComboBox()
         self.dev_combo.currentTextChanged.connect(self.labels_table.rebuild)
 
+        self._read_hw_btn = QPushButton("Read from Hardware")
+        self._read_hw_btn.setToolTip(
+            "Read the current state labels from the hardware device"
+        )
+        self._read_hw_btn.clicked.connect(self._read_labels_from_hardware)
+
         row = QHBoxLayout()
         row.addWidget(QLabel("Device:"))
         row.addWidget(self.dev_combo, 1)
+        row.addWidget(self._read_hw_btn)
 
         layout = QVBoxLayout(self)
         layout.addLayout(row)
@@ -93,3 +104,22 @@ class LabelsPage(ConfigWizardPage):
 
         self.labels_table.rebuild(self.dev_combo.currentText())
         super().initializePage()
+
+    def _read_labels_from_hardware(self) -> None:
+        """Read state labels from the hardware device and update the table."""
+        dev_name = self.dev_combo.currentText()
+        if not dev_name:
+            return
+
+        try:
+            hw_labels = self._core.getStateLabels(dev_name)
+        except Exception:  # pragma: no cover
+            logger.exception("Failed to read labels from hardware for %s", dev_name)
+            return
+
+        dev = self._model.get_device(dev_name)
+        for i, label in enumerate(hw_labels):
+            if i < len(dev.labels):
+                dev.set_label(i, label)
+
+        self.labels_table.rebuild(dev_name)
