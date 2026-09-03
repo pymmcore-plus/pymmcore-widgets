@@ -29,3 +29,38 @@ def test_properties_widget(qtbot, global_mmcore):
                 continue
             wdg.setValue(0.1)
             assert wdg.value() == 0.1
+
+
+def test_property_widget_cross_thread_update(qtbot, global_mmcore):
+    """A core event handled on a worker thread must not write back to the core."""
+    import threading
+
+    dev, prop = "Camera", "Exposure"  # float with limits: slider + spinbox
+    global_mmcore.setProperty(dev, prop, "10")
+    wdg = PropertyWidget(dev, prop, mmcore=global_mmcore)
+    qtbot.addWidget(wdg)
+    assert wdg.value() == 10.0
+
+    writes = []
+    orig_set = global_mmcore.setProperty
+
+    def spy(*args, **kwargs):
+        writes.append(args)
+        return orig_set(*args, **kwargs)
+
+    global_mmcore.setProperty = spy
+    try:
+
+        def from_thread() -> None:
+            for v in ("20", "30", "40"):
+                wdg._on_core_changed(dev, prop, v)
+
+        t = threading.Thread(target=from_thread)
+        t.start()
+        t.join()
+        qtbot.waitUntil(lambda: wdg.value() == 40.0)
+        qtbot.wait(100)
+    finally:
+        global_mmcore.setProperty = orig_set
+
+    assert writes == []

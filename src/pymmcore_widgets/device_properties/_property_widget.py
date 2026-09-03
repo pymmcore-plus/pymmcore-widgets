@@ -30,6 +30,7 @@ from qtpy.QtWidgets import (
     QSpinBox,
     QWidget,
 )
+from superqt.utils import ensure_main_thread
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
@@ -613,9 +614,15 @@ class PropertyWidget(QWidget):
                 value = self._try_update_from_core()
         self.valueChanged.emit(value)
 
+    @ensure_main_thread
     @Slot(str, str, object)
     def _on_core_changed(self, device: str, prop: str, value: Any) -> None:
-        """Handle core property changes."""
+        """Handle core property changes.
+
+        Runs on the main thread. When called from another thread, the inner
+        slider and spinbox signals are delivered after ``blockSignals`` is
+        released, and ``_on_widget_changed`` writes the value back to the core.
+        """
         if device == self._device and prop == self._prop:
             self._value_widget.blockSignals(True)
             try:
@@ -623,6 +630,7 @@ class PropertyWidget(QWidget):
             finally:
                 self._value_widget.blockSignals(False)
 
+    @ensure_main_thread
     @Slot()
     def _on_config_loaded(self) -> None:
         """Handle system configuration reload."""
