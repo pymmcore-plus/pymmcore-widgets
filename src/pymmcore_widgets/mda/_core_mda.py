@@ -79,12 +79,9 @@ class CoreMDATabs(MDATabs):
         # disable tab checkboxes
         for cbox in self._cboxes:
             cbox.setEnabled(enable)
-        # disable tabs contents
-        self.time_plan.setEnabled(enable)
-        self.stage_positions.setEnabled(enable)
-        self.z_plan.setEnabled(enable)
-        self.grid_plan.setEnabled(enable)
-        self.channels.setEnabled(enable)
+        # disable tabs contents (the content of an unchecked tab stays disabled)
+        for i in range(self.count()):
+            self.widget(i).setEnabled(enable and self.isChecked(i) is not False)
 
 
 class MDAWidget(MDASequenceWidget):
@@ -440,6 +437,9 @@ class MDAWidget(MDASequenceWidget):
     @Slot(object)
     def _on_mda_finished(self, sequence: MDASequence) -> None:
         self._enable_widgets(True)
+        # _enable_widgets enables all autofocus widgets: disable them again if there
+        # is no autofocus device or the z plan is absolute
+        self._update_autofocus_enablement()
         # update the save name in the gui with the next available path
         # FIXME: this is actually a bit error prone in the case of super fast
         # experiments and delayed writers that haven't yet written anything to disk
