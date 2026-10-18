@@ -16,7 +16,7 @@ from qtpy.QtWidgets import (
     QWizard,
 )
 from superqt.utils import signals_blocked
-from useq import MDASequence, WellPlatePlan
+from useq import WellPlatePlan
 
 from pymmcore_widgets import HCSWizard
 from pymmcore_widgets._util import DeferredCall
@@ -492,28 +492,27 @@ class CoreConnectedPositionTable(PositionTable):
 
     @Slot()
     def _update_fov_size(self) -> None:
-        """Update the FOV size of any grid plan subsequence."""
-        if not (pos_list := self.value()):
-            return
+        """Update the FOV size of any grid plan subsequence.
 
-        # get updated FOV size
+        Only the sub-sequence cells change. A rebuild of the table from value() would
+        remove the unchecked rows and the values in hidden columns (e.g. z).
+        """
         px = self._mmc.getPixelSizeUm()
         fov_w = self._mmc.getImageWidth() * px
         fov_h = self._mmc.getImageHeight() * px
-
-        new_pos_list = []
-        for pos in pos_list:
-            # skip if there is not a subsequence
-            if pos.sequence is None:
-                new_pos_list.append(pos)
-                continue
-            # skip if there is not a grid plan
-            if (gp := pos.sequence.grid_plan) is None:
-                new_pos_list.append(pos)
-                continue
-            # update the FOV size
-            new_gp = gp.model_copy(update={"fov_width": fov_w, "fov_height": fov_h})
-            new_pos = pos.model_copy(update={"sequence": MDASequence(grid_plan=new_gp)})
-            new_pos_list.append(new_pos)
-        # update the table
-        self.setValue(new_pos_list)
+        if not (fov_w and fov_h):  # e.g. no pixel size config or camera
+            return
+        table = self.table()
+        key = self.SEQ.key
+        changed = False
+        # one valueChanged for all the rows, not one for each row
+        with signals_blocked(table):
+            for row in range(table.rowCount()):
+                seq = table.rowData(row).get(key)
+                if seq is not None and seq.grid_plan is not None:
+                    gp = seq.grid_plan.replace(fov_width=fov_w, fov_height=fov_h)
+                    if gp != seq.grid_plan:
+                        table.setRowData(row, {key: seq.replace(grid_plan=gp)})
+                        changed = True
+        if changed:
+            self.valueChanged.emit()

@@ -37,7 +37,7 @@ from pymmcore_widgets.useq_widgets._positions import (
 )
 
 if TYPE_CHECKING:
-    from collections.abc import Callable
+    from collections.abc import Callable, Sequence
 
     from pytestqt.qtbot import QtBot
 
@@ -991,6 +991,77 @@ def test_core_mda_autofocus_and_z_plan(
         # AF column should be hidden
         assert pos_table.table().isColumnHidden(af_col)
         assert pos_table.table().isColumnHidden(af_btn_col)
+
+
+def test_position_fov_update_keeps_rows(
+    qtbot: QtBot, global_mmcore: CMMCorePlus
+) -> None:
+    """A new FOV size changes only the grid plans of the position sub-sequences.
+
+    Unchecked rows, values in hidden columns, and the other fields of the
+    sub-sequences stay. The sizes of a sub-sequence agree with its new grid plan, and
+    the table emits valueChanged one time. An event without a new FOV size, or with
+    no pixel size, changes nothing.
+    """
+    wdg = MDAWidget()
+    qtbot.addWidget(wdg)
+    pos_table = wdg.stage_positions
+    sub_seq = useq.MDASequence(
+        grid_plan=useq.GridRowsColumns(
+            rows=2, columns=1, fov_width=512, fov_height=512
+        ),
+        z_plan={"range": 2, "step": 1},
+    )
+    area_seq = useq.MDASequence(
+        grid_plan=useq.GridWidthHeight(
+            width=1000, height=1000, fov_width=512, fov_height=512
+        )
+    )
+    pos_table.setValue(
+        [
+            useq.Position(x=0, y=0, z=5, sequence=sub_seq),
+            useq.Position(x=1, y=1, z=6),
+            useq.Position(x=2, y=2, z=7, sequence=area_seq),
+        ]
+    )
+    pos_table.include_z.setChecked(False)
+    table = pos_table.table()
+    table.item(1, table.indexOf(pos_table.NAME)).setCheckState(Qt.CheckState.Unchecked)
+    assert len(pos_table.value()) == 2
+    # useq caches the sizes of a sequence
+    assert pos_table.value()[1].sequence.sizes["g"] == 4
+    value_changed = Mock()
+    pos_table.valueChanged.connect(value_changed)
+
+    global_mmcore.setROI(0, 0, 100, 150)
+
+    def all_positions() -> Sequence[useq.Position]:
+        return pos_table.value(exclude_unchecked=False, exclude_hidden_cols=False)
+
+    qtbot.waitUntil(lambda: all_positions()[0].sequence.grid_plan.fov_width == 100)
+    positions = all_positions()
+    assert len(positions) == 3
+    assert len(pos_table.value()) == 2
+    assert [p.z for p in positions] == [5, 6, 7]
+    assert not pos_table.include_z.isChecked()
+    assert positions[0].sequence.grid_plan.fov_height == 150
+    assert positions[0].sequence.z_plan == sub_seq.z_plan
+    area = positions[2].sequence
+    assert area.sizes["g"] == len(list(area.grid_plan)) == 70
+    value_changed.assert_called_once()
+
+    # the same FOV size again
+    value_changed.reset_mock()
+    global_mmcore.events.roiSet.emit("Camera", 0, 0, 100, 150)
+    qtbot.wait(10)
+    value_changed.assert_not_called()
+
+    # no pixel size (e.g. no pixel size config agrees with the current state)
+    with patch.object(global_mmcore, "getPixelSizeUm", return_value=0):
+        global_mmcore.events.pixelSizeChanged.emit(0)
+        qtbot.wait(10)
+    value_changed.assert_not_called()
+    assert all_positions()[0].sequence.grid_plan.fov_width == 100
 
 
 def test_grid_plan_fov_update(qtbot: QtBot, global_mmcore: CMMCorePlus) -> None:
