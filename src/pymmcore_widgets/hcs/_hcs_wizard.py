@@ -10,6 +10,7 @@ from qtpy.QtCore import QSize, Slot
 from qtpy.QtWidgets import QFileDialog, QVBoxLayout, QWidget, QWizard, QWizardPage
 from useq import WellPlatePlan
 
+from pymmcore_widgets._util import DeferredCall
 from pymmcore_widgets.useq_widgets import PointsPlanWidget, WellPlateWidget
 
 from ._plate_calibration_widget import PlateCalibrationWidget
@@ -217,8 +218,10 @@ class _PointsPlanPage(QWizardPage):
         layout.setContentsMargins(0, 0, 0, 0)
         layout.addWidget(self.widget)
 
-        self._mmc.events.pixelSizeChanged.connect(self._on_px_size_changed)
-        self._mmc.events.systemConfigurationLoaded.connect(self._on_px_size_changed)
+        # update the FOV size later on the GUI thread (see DeferredCall)
+        self._fov_update = DeferredCall(self._on_px_size_changed, self)
+        self._mmc.events.pixelSizeChanged.connect(self._fov_update.request)
+        self._mmc.events.systemConfigurationLoaded.connect(self._fov_update.request)
         self._on_px_size_changed()
 
     @Slot()

@@ -19,6 +19,7 @@ from superqt.utils import signals_blocked
 from useq import MDASequence, WellPlatePlan
 
 from pymmcore_widgets import HCSWizard
+from pymmcore_widgets._util import DeferredCall
 from pymmcore_widgets.useq_widgets import PositionTable
 from pymmcore_widgets.useq_widgets._column_info import (
     ButtonColumn,
@@ -111,8 +112,10 @@ class CoreConnectedPositionTable(PositionTable):
         # connect
         self._mmc.events.systemConfigurationLoaded.connect(self._on_sys_config_loaded)
         self._mmc.events.propertyChanged.connect(self._on_property_changed)
-        self._mmc.events.roiSet.connect(self._update_fov_size)
-        self._mmc.events.pixelSizeChanged.connect(self._update_fov_size)
+        # update the FOV size later on the GUI thread (see DeferredCall)
+        self._fov_update = DeferredCall(self._update_fov_size, self)
+        self._mmc.events.roiSet.connect(self._fov_update.request)
+        self._mmc.events.pixelSizeChanged.connect(self._fov_update.request)
 
         self.destroyed.connect(self._disconnect)
 
@@ -173,7 +176,7 @@ class CoreConnectedPositionTable(PositionTable):
     def _hcs(self) -> HCSWizard:
         """Get the HCS wizard, initializing it if it doesn't exist."""
         if self._hcs_wizard is None:
-            self._hcs_wizard = HCSWizard(self)
+            self._hcs_wizard = HCSWizard(self, mmcore=self._mmc)
             self._rename_hcs_position_button(ADD_POSITIONS)
             self._hcs_wizard.accepted.connect(self._on_hcs_accepted)
         return self._hcs_wizard

@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING
 from pymmcore_plus import CMMCorePlus
 from qtpy.QtCore import Slot
 
+from pymmcore_widgets._util import DeferredCall
 from pymmcore_widgets.useq_widgets._grid import GridPlanWidget, Mode
 
 from ._xy_bounds import CoreXYBoundsControl
@@ -44,9 +45,14 @@ class CoreConnectedGridPlanWidget(GridPlanWidget):
         # add CoreXYBoundsControl widget to GridPlanWidget
         self._stack.addWidget(self._core_xy_bounds)
 
-        self._mmc.events.systemConfigurationLoaded.connect(self._update_fov_size)
-        self._mmc.events.pixelSizeChanged.connect(self._update_fov_size)
-        self._mmc.events.roiSet.connect(self._update_fov_size)
+        # update the FOV size later on the GUI thread (see DeferredCall)
+        self._fov_update = DeferredCall(self._update_fov_size, self)
+        for event in (
+            self._mmc.events.systemConfigurationLoaded,
+            self._mmc.events.pixelSizeChanged,
+            self._mmc.events.roiSet,
+        ):
+            event.connect(self._fov_update.request)
         self._update_fov_size()
 
     @Slot()

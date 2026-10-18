@@ -1,11 +1,14 @@
 from __future__ import annotations
 
+import gc
+import threading
 from pathlib import Path
 from typing import TYPE_CHECKING, cast
 from unittest.mock import Mock, patch
 
 import pytest
 import useq
+from pymmcore_plus import CMMCorePlus
 from qtpy.QtCore import Qt, QTimer
 from qtpy.QtWidgets import QMessageBox
 
@@ -36,7 +39,6 @@ from pymmcore_widgets.useq_widgets._positions import (
 if TYPE_CHECKING:
     from collections.abc import Callable
 
-    from pymmcore_plus import CMMCorePlus
     from pytestqt.qtbot import QtBot
 
     from pymmcore_widgets.mda._core_mda import CoreMDATabs
@@ -1006,12 +1008,12 @@ def test_grid_plan_fov_update(qtbot: QtBot, global_mmcore: CMMCorePlus) -> None:
 
     with qtbot.waitSignal(mmc.events.roiSet):
         mmc.setROI(0, 0, 100, 150)
-    assert wdg.value().grid_plan.fov_width == 100
+    qtbot.waitUntil(lambda: wdg.value().grid_plan.fov_width == 100)
     assert wdg.value().grid_plan.fov_height == 150
 
     with qtbot.waitSignal(mmc.events.pixelSizeChanged):
         mmc.setPixelSizeConfig("Res20x")
-    assert wdg.value().grid_plan.fov_width == 50
+    qtbot.waitUntil(lambda: wdg.value().grid_plan.fov_width == 50)
     assert wdg.value().grid_plan.fov_height == 75
 
 
@@ -1043,13 +1045,81 @@ def test_grid_plan_subsequence_fov_update(
     with qtbot.waitSignal(mmc.events.roiSet):
         mmc.setROI(0, 0, 100, 150)
 
-    assert sp.value()[0].sequence.grid_plan.fov_width == 100
+    qtbot.waitUntil(lambda: sp.value()[0].sequence.grid_plan.fov_width == 100)
     assert sp.value()[0].sequence.grid_plan.fov_height == 150
 
     with qtbot.waitSignal(mmc.events.pixelSizeChanged):
         mmc.setPixelSizeConfig("Res20x")
-    assert sp.value()[0].sequence.grid_plan.fov_width == 50
+    qtbot.waitUntil(lambda: sp.value()[0].sequence.grid_plan.fov_width == 50)
     assert sp.value()[0].sequence.grid_plan.fov_height == 75
+
+
+def test_fov_update_deferred_to_gui_thread(
+    qtbot: QtBot, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Core events from a device thread update the FOV size on the GUI thread.
+
+    The event is emitted from inside the core call that caused it. Reading the core
+    or changing widgets there can crash (e.g. on an objective change on a Nikon Ti).
+    With the psygnal backend (as used by faro), the event is not moved to the GUI
+    thread before the widgets get it. Events that come together give one update.
+    """
+    monkeypatch.setenv("PYMM_SIGNALS_BACKEND", "psygnal")
+    mmc = CMMCorePlus()
+    mmc.loadSystemConfiguration(TEST_CONFIG)
+    wdg = MDAWidget(mmcore=mmc)
+    qtbot.addWidget(wdg)
+    wdg.stage_positions.setValue(
+        [useq.Position(x=0, y=0, sequence={"grid_plan": {"rows": 2, "columns": 1}})]
+    )
+    assert wdg.stage_positions._hcs  # create the HCS wizard and its points page
+
+    threads: list[threading.Thread] = []
+    get_pixel_size = mmc.getPixelSizeUm
+
+    def pixel_size(*args: bool) -> float:
+        threads.append(threading.current_thread())
+        return get_pixel_size(*args)
+
+    def emit_events() -> None:
+        mmc.events.pixelSizeChanged.emit(1)
+        mmc.events.roiSet.emit("Camera", 0, 0, 100, 150)
+
+    with patch.object(mmc, "getPixelSizeUm", pixel_size):
+        event = threading.Thread(target=emit_events)
+        event.start()
+        event.join()
+        assert not threads
+        # the grid plan, the position table and the HCS points page read the pixel
+        # size one time each
+        qtbot.waitUntil(lambda: len(threads) >= 3)
+        qtbot.wait(10)
+    assert len(threads) == 3
+    assert all(t is threading.main_thread() for t in threads)
+
+
+@pytest.mark.parametrize("backend", ["qt", "psygnal"])
+def test_fov_events_after_widget_deleted(
+    qtbot: QtBot, monkeypatch: pytest.MonkeyPatch, backend: str
+) -> None:
+    """Core events that change the FOV size do nothing after the widget is deleted."""
+    monkeypatch.setenv("PYMM_SIGNALS_BACKEND", backend)
+    mmc = CMMCorePlus()
+    mmc.loadSystemConfiguration(TEST_CONFIG)
+    wdg = MDAWidget(mmcore=mmc)
+    # keep the Python objects, as an application (e.g. napari) can do
+    sub_widgets = (wdg.grid_plan, wdg.stage_positions, wdg.stage_positions._hcs)
+    wdg.deleteLater()
+    qtbot.wait(10)
+    gc.collect()
+    for w in sub_widgets:  # the Qt objects are deleted
+        with pytest.raises(RuntimeError):
+            w.objectName()
+
+    mmc.setROI(0, 0, 100, 150)
+    mmc.events.pixelSizeChanged.emit(1)
+    mmc.loadSystemConfiguration(TEST_CONFIG)
+    qtbot.wait(10)
 
 
 def test_sub_wdg_channel_tab(qtbot: QtBot, global_mmcore: CMMCorePlus) -> None:
