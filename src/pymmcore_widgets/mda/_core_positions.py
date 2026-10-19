@@ -156,14 +156,17 @@ class CoreConnectedPositionTable(PositionTable):
         but it was checked, we want to keep it checked but disabled (the super.value
         method takes care of excluding the AF column from the returned value if the
         checkbox is disabled but checked).
+
+        Only the AF column changes here, never the enabled state of the checkbox. The
+        EnabledChange event also comes when a parent widget is disabled, e.g. while
+        an MDA runs. Disabling the checkbox itself here would keep it disabled after
+        the parent is enabled again.
         """
         if not self.af_per_position.isEnabled():
-            # leave the checkbox checked but disable it
-            self.af_per_position.setEnabled(False)
+            # leave the checkbox checked, but hide the AF column
             self._on_af_per_position_toggled(False)
         elif self.af_per_position.isChecked():
             self._on_af_per_position_toggled(True)
-            self.af_per_position.setEnabled(True)
 
     def _show_hcs(self) -> None:
         """Show or raise the HCS wizard."""
