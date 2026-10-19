@@ -1,12 +1,13 @@
 from __future__ import annotations
 
 import re
+from contextlib import suppress
 from pathlib import Path
 from typing import TYPE_CHECKING
 
 from psygnal import SignalGroup, SignalInstance
 from pymmcore_plus import CMMCorePlus
-from qtpy.QtCore import QMarginsF, QObject, Qt
+from qtpy.QtCore import QMarginsF, QObject, Qt, Signal
 from qtpy.QtGui import QPainter, QPaintEvent, QPen, QResizeEvent
 from qtpy.QtWidgets import (
     QComboBox,
@@ -21,9 +22,41 @@ from qtpy.QtWidgets import (
 from superqt.utils import signals_blocked
 
 if TYPE_CHECKING:
-    from collections.abc import Sequence
+    from collections.abc import Callable, Sequence
     from contextlib import AbstractContextManager
     from typing import Any
+
+
+class DeferredCall(QObject):
+    """Run a function later on the thread of `parent`, for example from core events.
+
+    Core events are emitted from inside the core call that caused them, maybe on a
+    device thread. Reading the core or changing widgets there can crash. Connect the
+    events to `request`: `fn` then runs after the core call returns, on the thread of
+    `parent` (normally the GUI thread), one time for the requests that come before it
+    runs. After `parent` is deleted, `request` does nothing.
+
+    Keep a reference to this object, because events hold only a weak reference.
+    """
+
+    _requested = Signal()
+
+    def __init__(self, fn: Callable[[], Any], parent: QObject) -> None:
+        super().__init__(parent)
+        self._fn = fn
+        self._pending = False
+        self._requested.connect(self._run, Qt.ConnectionType.QueuedConnection)
+
+    def request(self, *_: Any) -> None:
+        """Ask for one call of `fn`. Thread safe; the arguments are ignored."""
+        if not self._pending:
+            self._pending = True
+            with suppress(RuntimeError):  # parent deleted: do nothing
+                self._requested.emit()
+
+    def _run(self) -> None:
+        self._pending = False
+        self._fn()
 
 
 class ComboMessageBox(QDialog):

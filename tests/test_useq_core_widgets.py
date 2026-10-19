@@ -1,11 +1,14 @@
 from __future__ import annotations
 
+import gc
+import threading
 from pathlib import Path
 from typing import TYPE_CHECKING, cast
 from unittest.mock import Mock, patch
 
 import pytest
 import useq
+from pymmcore_plus import CMMCorePlus
 from qtpy.QtCore import Qt, QTimer
 from qtpy.QtWidgets import QMessageBox
 
@@ -34,9 +37,8 @@ from pymmcore_widgets.useq_widgets._positions import (
 )
 
 if TYPE_CHECKING:
-    from collections.abc import Callable
+    from collections.abc import Callable, Sequence
 
-    from pymmcore_plus import CMMCorePlus
     from pytestqt.qtbot import QtBot
 
     from pymmcore_widgets.mda._core_mda import CoreMDATabs
@@ -991,6 +993,77 @@ def test_core_mda_autofocus_and_z_plan(
         assert pos_table.table().isColumnHidden(af_btn_col)
 
 
+def test_position_fov_update_keeps_rows(
+    qtbot: QtBot, global_mmcore: CMMCorePlus
+) -> None:
+    """A new FOV size changes only the grid plans of the position sub-sequences.
+
+    Unchecked rows, values in hidden columns, and the other fields of the
+    sub-sequences stay. The sizes of a sub-sequence agree with its new grid plan, and
+    the table emits valueChanged one time. An event without a new FOV size, or with
+    no pixel size, changes nothing.
+    """
+    wdg = MDAWidget()
+    qtbot.addWidget(wdg)
+    pos_table = wdg.stage_positions
+    sub_seq = useq.MDASequence(
+        grid_plan=useq.GridRowsColumns(
+            rows=2, columns=1, fov_width=512, fov_height=512
+        ),
+        z_plan={"range": 2, "step": 1},
+    )
+    area_seq = useq.MDASequence(
+        grid_plan=useq.GridWidthHeight(
+            width=1000, height=1000, fov_width=512, fov_height=512
+        )
+    )
+    pos_table.setValue(
+        [
+            useq.Position(x=0, y=0, z=5, sequence=sub_seq),
+            useq.Position(x=1, y=1, z=6),
+            useq.Position(x=2, y=2, z=7, sequence=area_seq),
+        ]
+    )
+    pos_table.include_z.setChecked(False)
+    table = pos_table.table()
+    table.item(1, table.indexOf(pos_table.NAME)).setCheckState(Qt.CheckState.Unchecked)
+    assert len(pos_table.value()) == 2
+    # useq caches the sizes of a sequence
+    assert pos_table.value()[1].sequence.sizes["g"] == 4
+    value_changed = Mock()
+    pos_table.valueChanged.connect(value_changed)
+
+    global_mmcore.setROI(0, 0, 100, 150)
+
+    def all_positions() -> Sequence[useq.Position]:
+        return pos_table.value(exclude_unchecked=False, exclude_hidden_cols=False)
+
+    qtbot.waitUntil(lambda: all_positions()[0].sequence.grid_plan.fov_width == 100)
+    positions = all_positions()
+    assert len(positions) == 3
+    assert len(pos_table.value()) == 2
+    assert [p.z for p in positions] == [5, 6, 7]
+    assert not pos_table.include_z.isChecked()
+    assert positions[0].sequence.grid_plan.fov_height == 150
+    assert positions[0].sequence.z_plan == sub_seq.z_plan
+    area = positions[2].sequence
+    assert area.sizes["g"] == len(list(area.grid_plan)) == 70
+    value_changed.assert_called_once()
+
+    # the same FOV size again
+    value_changed.reset_mock()
+    global_mmcore.events.roiSet.emit("Camera", 0, 0, 100, 150)
+    qtbot.wait(10)
+    value_changed.assert_not_called()
+
+    # no pixel size (e.g. no pixel size config agrees with the current state)
+    with patch.object(global_mmcore, "getPixelSizeUm", return_value=0):
+        global_mmcore.events.pixelSizeChanged.emit(0)
+        qtbot.wait(10)
+    value_changed.assert_not_called()
+    assert all_positions()[0].sequence.grid_plan.fov_width == 100
+
+
 def test_grid_plan_fov_update(qtbot: QtBot, global_mmcore: CMMCorePlus) -> None:
     mmc = global_mmcore
     wdg = MDAWidget()
@@ -1006,12 +1079,12 @@ def test_grid_plan_fov_update(qtbot: QtBot, global_mmcore: CMMCorePlus) -> None:
 
     with qtbot.waitSignal(mmc.events.roiSet):
         mmc.setROI(0, 0, 100, 150)
-    assert wdg.value().grid_plan.fov_width == 100
+    qtbot.waitUntil(lambda: wdg.value().grid_plan.fov_width == 100)
     assert wdg.value().grid_plan.fov_height == 150
 
     with qtbot.waitSignal(mmc.events.pixelSizeChanged):
         mmc.setPixelSizeConfig("Res20x")
-    assert wdg.value().grid_plan.fov_width == 50
+    qtbot.waitUntil(lambda: wdg.value().grid_plan.fov_width == 50)
     assert wdg.value().grid_plan.fov_height == 75
 
 
@@ -1043,13 +1116,81 @@ def test_grid_plan_subsequence_fov_update(
     with qtbot.waitSignal(mmc.events.roiSet):
         mmc.setROI(0, 0, 100, 150)
 
-    assert sp.value()[0].sequence.grid_plan.fov_width == 100
+    qtbot.waitUntil(lambda: sp.value()[0].sequence.grid_plan.fov_width == 100)
     assert sp.value()[0].sequence.grid_plan.fov_height == 150
 
     with qtbot.waitSignal(mmc.events.pixelSizeChanged):
         mmc.setPixelSizeConfig("Res20x")
-    assert sp.value()[0].sequence.grid_plan.fov_width == 50
+    qtbot.waitUntil(lambda: sp.value()[0].sequence.grid_plan.fov_width == 50)
     assert sp.value()[0].sequence.grid_plan.fov_height == 75
+
+
+def test_fov_update_deferred_to_gui_thread(
+    qtbot: QtBot, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Core events from a device thread update the FOV size on the GUI thread.
+
+    The event is emitted from inside the core call that caused it. Reading the core
+    or changing widgets there can crash (e.g. on an objective change on a Nikon Ti).
+    With the psygnal backend (as used by faro), the event is not moved to the GUI
+    thread before the widgets get it. Events that come together give one update.
+    """
+    monkeypatch.setenv("PYMM_SIGNALS_BACKEND", "psygnal")
+    mmc = CMMCorePlus()
+    mmc.loadSystemConfiguration(TEST_CONFIG)
+    wdg = MDAWidget(mmcore=mmc)
+    qtbot.addWidget(wdg)
+    wdg.stage_positions.setValue(
+        [useq.Position(x=0, y=0, sequence={"grid_plan": {"rows": 2, "columns": 1}})]
+    )
+    assert wdg.stage_positions._hcs  # create the HCS wizard and its points page
+
+    threads: list[threading.Thread] = []
+    get_pixel_size = mmc.getPixelSizeUm
+
+    def pixel_size(*args: bool) -> float:
+        threads.append(threading.current_thread())
+        return get_pixel_size(*args)
+
+    def emit_events() -> None:
+        mmc.events.pixelSizeChanged.emit(1)
+        mmc.events.roiSet.emit("Camera", 0, 0, 100, 150)
+
+    with patch.object(mmc, "getPixelSizeUm", pixel_size):
+        event = threading.Thread(target=emit_events)
+        event.start()
+        event.join()
+        assert not threads
+        # the grid plan, the position table and the HCS points page read the pixel
+        # size one time each
+        qtbot.waitUntil(lambda: len(threads) >= 3)
+        qtbot.wait(10)
+    assert len(threads) == 3
+    assert all(t is threading.main_thread() for t in threads)
+
+
+@pytest.mark.parametrize("backend", ["qt", "psygnal"])
+def test_fov_events_after_widget_deleted(
+    qtbot: QtBot, monkeypatch: pytest.MonkeyPatch, backend: str
+) -> None:
+    """Core events that change the FOV size do nothing after the widget is deleted."""
+    monkeypatch.setenv("PYMM_SIGNALS_BACKEND", backend)
+    mmc = CMMCorePlus()
+    mmc.loadSystemConfiguration(TEST_CONFIG)
+    wdg = MDAWidget(mmcore=mmc)
+    # keep the Python objects, as an application (e.g. napari) can do
+    sub_widgets = (wdg.grid_plan, wdg.stage_positions, wdg.stage_positions._hcs)
+    wdg.deleteLater()
+    qtbot.wait(10)
+    gc.collect()
+    for w in sub_widgets:  # the Qt objects are deleted
+        with pytest.raises(RuntimeError):
+            w.objectName()
+
+    mmc.setROI(0, 0, 100, 150)
+    mmc.events.pixelSizeChanged.emit(1)
+    mmc.loadSystemConfiguration(TEST_CONFIG)
+    qtbot.wait(10)
 
 
 def test_sub_wdg_channel_tab(qtbot: QtBot, global_mmcore: CMMCorePlus) -> None:
