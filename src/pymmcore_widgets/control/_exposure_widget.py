@@ -3,7 +3,7 @@ from __future__ import annotations
 from pymmcore_plus import CMMCorePlus, Keyword
 from qtpy.QtCore import Qt, Slot
 from qtpy.QtWidgets import QApplication, QDoubleSpinBox, QHBoxLayout, QLabel, QWidget
-from superqt.utils import signals_blocked
+from superqt.utils import ensure_main_thread, signals_blocked
 
 
 class ExposureWidget(QWidget):
@@ -80,8 +80,11 @@ class ExposureWidget(QWidget):
         if orig_cam != self._camera:
             self._on_load()
 
+    @ensure_main_thread
     @Slot()
     def _on_load(self) -> None:
+        # core events may arrive on another thread; update the widget on the
+        # main thread only
         with signals_blocked(self.spinBox):
             if self._camera and self._camera in self._mmc.getLoadedDevices():
                 self.setEnabled(True)
@@ -89,6 +92,7 @@ class ExposureWidget(QWidget):
             else:
                 self.setEnabled(False)
 
+    @ensure_main_thread
     @Slot(str, float)
     def _on_exp_changed(self, camera: str, exposure: float) -> None:
         if camera == self._camera:
