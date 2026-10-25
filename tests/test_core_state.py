@@ -32,7 +32,7 @@ ALL_WIDGETS: dict[type[QWidget], dict[str, Any]] = {
     pmmw.PropertiesWidget: {},
     pmmw.PropertyBrowser: {},
     pmmw.PropertyWidget: {"device_label": "Camera", "prop_name": "Binning"},
-    pmmw.ShuttersWidget: {"shutter_device": "Shutter"},
+    pmmw.ShutterWidget: {"shutter_device": "Shutter"},
     pmmw.SnapButton: {},
     pmmw.StageWidget: {"device": "XY"},
     pmmw.TimePlanWidget: {},

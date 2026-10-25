@@ -9,7 +9,7 @@ The autoshutter checkbox is displayed only with the last shutter device.
 from pymmcore_plus import CMMCorePlus, DeviceType
 from qtpy.QtWidgets import QApplication, QHBoxLayout, QWidget
 
-from pymmcore_widgets import ShuttersWidget
+from pymmcore_widgets import ShutterWidget
 
 app = QApplication([])
 
@@ -24,7 +24,12 @@ shutter_dev_list = list(mmc.getLoadedDevicesOfType(DeviceType.Shutter))
 for idx, shutter_dev in enumerate(shutter_dev_list):
     # bool to display the autoshutter checkbox only with the last shutter
     autoshutter = bool(idx >= len(shutter_dev_list) - 1)
-    shutter = ShuttersWidget(shutter_dev, autoshutter=autoshutter)
+    shutter = ShutterWidget(
+        shutter_dev,
+        autoshutter=autoshutter,
+        button_text_open=shutter_dev,
+        button_text_closed=shutter_dev,
+    )
     wdg.layout().addWidget(shutter)
 
 wdg.show()
