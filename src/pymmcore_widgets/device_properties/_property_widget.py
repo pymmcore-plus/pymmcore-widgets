@@ -105,7 +105,14 @@ class FloatSpinBox(QDoubleSpinBox):
         self.setKeyboardTracking(False)  # Don't emit while typing
         self.setRange(DEFAULT_FLOAT_MIN, DEFAULT_FLOAT_MAX)
         self.setDecimals(4)
+        self._max_decimals: int | None = None
         _block_wheel(self)
+
+    def setMaxDecimals(self, n: int | None) -> None:
+        """Cap auto-expansion of decimals. None means no cap."""
+        self._max_decimals = n
+        if n is not None and self.decimals() > n:
+            self.setDecimals(n)
 
     def textFromValue(self, v: float) -> str:
         # Format with precision, strip trailing zeros
@@ -117,11 +124,12 @@ class FloatSpinBox(QDoubleSpinBox):
         if isinstance(val, str):
             val = float(val or 0)
         # Auto-adjust decimals to show value properly
-        val_str = f"{val:.10f}".rstrip("0").rstrip(".")
+        cap = self._max_decimals if self._max_decimals is not None else 10
+        val_str = f"{val:.{cap}f}".rstrip("0").rstrip(".")
         if "." in val_str:
             dec = len(val_str.split(".")[1])
             if dec > self.decimals():
-                self.setDecimals(min(dec, 10))
+                self.setDecimals(dec)
         super().setValue(val)
 
 
@@ -151,9 +159,11 @@ class LabeledSlider(QWidget):
         self,
         is_float: bool = False,
         parent: QWidget | None = None,
+        auto_expand: bool = False,
     ) -> None:
         super().__init__(parent)
         self._is_float = is_float
+        self._auto_expand = auto_expand
         self._scale = 1.0  # Calculated in setRange for floats
         self._value: int | float = 0  # Store exact value to avoid precision loss
 
@@ -185,6 +195,10 @@ class LabeledSlider(QWidget):
         self._spinbox.valueChanged.connect(self._on_spinbox_changed)
 
         self._updating = False
+
+    def spinBox(self) -> QSpinBox | QDoubleSpinBox:
+        """Return the spinbox widget."""
+        return self._spinbox
 
     def setRange(self, minimum: float, maximum: float) -> None:
         """Set the range for both slider and spinbox."""
@@ -236,6 +250,8 @@ class LabeledSlider(QWidget):
         # Don't update if parent signals are blocked (being set programmatically)
         if self.signalsBlocked():
             return
+        if self._auto_expand:
+            self._maybe_expand_slider(val)
         with _update_blocker(self):
             self._value = val  # Update stored value
             if self._is_float:
@@ -243,6 +259,19 @@ class LabeledSlider(QWidget):
             else:
                 self._slider.setValue(val)
             self.valueChanged.emit(val)
+
+    def _maybe_expand_slider(self, val: float) -> None:
+        """Expand slider range if the spinbox value exceeds it."""
+        if self._is_float:
+            smax = self._slider.maximum() / self._scale
+            smin = self._slider.minimum() / self._scale
+        else:
+            smax = self._slider.maximum()
+            smin = self._slider.minimum()
+        if val > smax:
+            self.setRange(smin, val * 1.2)
+        elif val < smin:
+            self.setRange(val * 1.2, smax)
 
 
 class ChoiceComboBox(QComboBox):

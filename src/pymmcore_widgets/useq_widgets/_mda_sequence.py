@@ -28,7 +28,7 @@ from pymmcore_widgets.useq_widgets._checkable_tabwidget_widget import CheckableT
 from pymmcore_widgets.useq_widgets._grid import GridPlanWidget
 from pymmcore_widgets.useq_widgets._positions import AF_PER_POS_TOOLTIP, PositionTable
 from pymmcore_widgets.useq_widgets._time import TimePlanWidget
-from pymmcore_widgets.useq_widgets._z import Mode, ZPlanWidget
+from pymmcore_widgets.useq_widgets._zplan_widget import Mode, ZPlanWidget
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
