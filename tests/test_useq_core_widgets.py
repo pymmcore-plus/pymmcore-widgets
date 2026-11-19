@@ -233,6 +233,23 @@ def mock_getAutoFocusOffset(global_mmcore: CMMCorePlus):
         yield
 
 
+def test_core_position_table_starts_empty(qtbot: QtBot) -> None:
+    """The MDA widget has no default position at x=0, y=0, z=0.
+
+    With the Positions tab checked and no row, the MDA uses the current position.
+    """
+    wdg = MDAWidget()
+    qtbot.addWidget(wdg)
+    wdg._mmc.setXYPosition(11, 22)
+    wdg._mmc.setZPosition(33)
+    wdg._mmc.waitForSystem()
+
+    assert wdg.stage_positions.table().rowCount() == 0
+    wdg.tab_wdg.setChecked(wdg.stage_positions, True)
+    (pos,) = wdg.value().stage_positions
+    assert (round(pos.x), round(pos.y), round(pos.z)) == (11, 22, 33)
+
+
 def test_core_position_table_add_position(
     qtbot: QtBot, mock_getAutoFocusOffset: None
 ) -> None:
@@ -249,7 +266,7 @@ def test_core_position_table_add_position(
 
     wdg.stage_positions.af_per_position.setChecked(True)
 
-    assert pos_table.table().rowCount() == 1
+    assert pos_table.table().rowCount() == 0
 
     # test when autofocus is not engaged and af_per_position is checked
     with patch.object(
@@ -259,7 +276,7 @@ def test_core_position_table_add_position(
             pos_table.act_add_row.trigger()
 
     # a new position has NOT been added
-    assert pos_table.table().rowCount() == 1
+    assert pos_table.table().rowCount() == 0
 
     # test when autofocus is engaged and af_per_position is checked
     with patch.object(wdg._mmc, "isContinuousFocusLocked", return_value=True):
@@ -274,7 +291,7 @@ def test_core_position_table_add_position(
     assert val.sequence.autofocus_plan.autofocus_motor_offset == 10
 
     # a new position has been added
-    assert pos_table.table().rowCount() == 2
+    assert pos_table.table().rowCount() == 1
 
 
 def test_core_connected_relative_z_plan(qtbot: QtBot):
