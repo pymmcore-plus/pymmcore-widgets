@@ -6,6 +6,7 @@ from unittest.mock import Mock, patch
 
 import pytest
 import useq
+from pymmcore_plus import CMMCorePlus
 from qtpy.QtCore import Qt, QTimer
 from qtpy.QtWidgets import QMessageBox
 
@@ -36,7 +37,6 @@ from pymmcore_widgets.useq_widgets._positions import (
 if TYPE_CHECKING:
     from collections.abc import Callable
 
-    from pymmcore_plus import CMMCorePlus
     from pytestqt.qtbot import QtBot
 
     from pymmcore_widgets.mda._core_mda import CoreMDATabs
@@ -1080,6 +1080,16 @@ def test_core_mda_autofocus_and_z_plan(
         # AF column should be hidden
         assert pos_table.table().isColumnHidden(af_col)
         assert pos_table.table().isColumnHidden(af_btn_col)
+
+
+def test_hcs_wizard_uses_position_table_core(qtbot: QtBot) -> None:
+    """The HCS wizard of the position table uses the core of the table."""
+    mmc = CMMCorePlus()
+    mmc.loadSystemConfiguration(TEST_CONFIG)
+    wdg = MDAWidget(mmcore=mmc)
+    qtbot.addWidget(wdg)
+    assert mmc is not CMMCorePlus.instance()
+    assert wdg.stage_positions._hcs._mmc is mmc
 
 
 def test_grid_plan_fov_update(qtbot: QtBot, global_mmcore: CMMCorePlus) -> None:

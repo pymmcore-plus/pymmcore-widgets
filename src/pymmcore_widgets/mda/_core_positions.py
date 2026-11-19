@@ -176,7 +176,7 @@ class CoreConnectedPositionTable(PositionTable):
     def _hcs(self) -> HCSWizard:
         """Get the HCS wizard, initializing it if it doesn't exist."""
         if self._hcs_wizard is None:
-            self._hcs_wizard = HCSWizard(self)
+            self._hcs_wizard = HCSWizard(self, mmcore=self._mmc)
             self._rename_hcs_position_button(ADD_POSITIONS)
             self._hcs_wizard.accepted.connect(self._on_hcs_accepted)
         return self._hcs_wizard
