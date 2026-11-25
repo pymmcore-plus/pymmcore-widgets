@@ -30,29 +30,30 @@ if TYPE_CHECKING:
 
 OME_ZARR = "ome-zarr"
 OME_TIFF = "ome-tiff"
+# No longer offered: recent pymmcore-plus versions write an output path through
+# ome-writers, which has no tiff-sequence format (a path without extension is
+# written as OME-Zarr). Kept to read sequences saved by older versions.
 TIFF_SEQ = "tiff-sequence"
 
 # dict with writer name and extension
 WRITERS: dict[str, list[str]] = {
     OME_ZARR: [".ome.zarr"],
     OME_TIFF: [".ome.tif", ".ome.tiff"],
-    TIFF_SEQ: [""],
 }
 
 EXT_TO_WRITER = {x: w for w, exts in WRITERS.items() for x in exts}
-ALL_EXTENSIONS = [x for exts in WRITERS.values() for x in exts if x]
-DIRECTORY_WRITERS = {TIFF_SEQ}  # technically could be zarr too
+ALL_EXTENSIONS = [x for exts in WRITERS.values() for x in exts]
 
 FILE_NAME = "Filename:"
-SUBFOLDER = "Subfolder:"
 
 
 def _known_extension(name: str) -> str | None:
-    """Return a known extension if the name ends with one.
+    """Return a known extension if the name ends with one, ignoring case.
 
     Note that all non-None return values are guaranteed to be in EXTENSION_TO_WRITER.
     """
-    return next((ext for ext in ALL_EXTENSIONS if name.endswith(ext)), None)
+    lower = name.lower()
+    return next((ext for ext in ALL_EXTENSIONS if lower.endswith(ext)), None)
 
 
 def _strip_known_extension(name: str) -> str:
@@ -112,9 +113,6 @@ class SaveGroupBox(QGroupBox):
         grid.addWidget(self.save_name, 1, 1)
         grid.addWidget(self._writer_combo, 1, 2, 1, 2)
 
-        # prevent jiggling when toggling the checkbox
-        width = self.fontMetrics().horizontalAdvance(SUBFOLDER)
-        grid.setColumnMinimumWidth(0, width)
         self.setFixedHeight(self.minimumSizeHint().height())
 
         # connect
@@ -156,7 +154,13 @@ class SaveGroupBox(QGroupBox):
             self.setChecked(True)
             return
 
-        if (fmt := value.get("format")) and fmt not in WRITERS:  # pragma: no cover
+        legacy_fmt = (fmt := value.get("format")) == TIFF_SEQ
+        if legacy_fmt:
+            # pymmcore-plus wrote these names without extension as OME-Zarr;
+            # a name with a known extension still picks its own writer below
+            self._writer_combo.setCurrentText(OME_ZARR)
+            fmt = None
+        elif fmt and fmt not in WRITERS:  # pragma: no cover
             raise ValueError(f"Invalid format {fmt!r}. Must be one of {list(WRITERS)}")
 
         self.save_dir.setText(value.get("save_dir", ""))
@@ -167,6 +171,13 @@ class SaveGroupBox(QGroupBox):
             self._writer_combo.setCurrentText(str(fmt))
         else:
             self._update_writer_from_name()
+
+        if legacy_fmt:
+            warn(
+                f"The {TIFF_SEQ!r} format is no longer supported. "
+                f"Using the {self._writer_combo.currentText()} writer.",
+                stacklevel=2,
+            )
 
     def _update_writer_from_name(self, allow_name_change: bool = True) -> None:
         """Called when the user finishes editing the save_name widget.
@@ -183,14 +194,20 @@ class SaveGroupBox(QGroupBox):
         name = self.save_name.text()
         if extension := _known_extension(name):
             self._writer_combo.setCurrentText(EXT_TO_WRITER[extension])
+            # the writers use the lower-case extension (e.g. "x.OME.TIF" is
+            # written as "x.ome.tif"), so show the name that will be written
+            if allow_name_change and not name.endswith(extension):
+                self.save_name.setText(name[: -len(extension)] + extension)
 
         elif not allow_name_change:
+            # keep the current writer; the extension is added when the
+            # name is next edited (e.g. before an MDA run)
             if ext := Path(name).suffix:
                 warn(
-                    f"Invalid format {ext!r}. Defaulting to {TIFF_SEQ} writer.",
+                    f"Invalid format {ext!r}. "
+                    f"Using the {self._writer_combo.currentText()} writer.",
                     stacklevel=2,
                 )
-            self._writer_combo.setCurrentText(TIFF_SEQ)
         elif name:
             # otherwise, if the name is not empty, add the first extension from the
             # current writer
@@ -207,19 +224,14 @@ class SaveGroupBox(QGroupBox):
     def _on_writer_combo_changed(self, writer: str) -> None:
         """Called when the writer format combo box is changed.
 
-        Updates save name to have the correct extension, and updates the label to
-        "Subfolder" or "Filename" depending on the writer type
+        Updates save name to have the correct extension.
         """
-        # update the label
-        self.name_label.setText(SUBFOLDER if writer in DIRECTORY_WRITERS else FILE_NAME)
-
         # if the name currently end with a known extension from the selected
         # writer, then we're done
         this_writer_extensions = WRITERS[writer]
         current_name = self.save_name.text()
-        for ext in this_writer_extensions:
-            if ext and current_name.endswith(ext):
-                return
+        if _known_extension(current_name) in this_writer_extensions:
+            return
 
         # otherwise strip any known extension and add the first one from the new writer.
         if name := _strip_known_extension(current_name):
