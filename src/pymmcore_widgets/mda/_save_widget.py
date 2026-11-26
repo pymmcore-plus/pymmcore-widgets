@@ -30,9 +30,7 @@ if TYPE_CHECKING:
 
 OME_ZARR = "ome-zarr"
 OME_TIFF = "ome-tiff"
-# No longer offered: recent pymmcore-plus versions write an output path through
-# ome-writers, which has no tiff-sequence format (a path without extension is
-# written as OME-Zarr). Kept to read sequences saved by older versions.
+# no longer offered (ome-writers has no such format), only read from old sequences
 TIFF_SEQ = "tiff-sequence"
 
 # dict with writer name and extension
@@ -154,10 +152,13 @@ class SaveGroupBox(QGroupBox):
             self.setChecked(True)
             return
 
-        legacy_fmt = (fmt := value.get("format")) == TIFF_SEQ
-        if legacy_fmt:
-            # pymmcore-plus wrote these names without extension as OME-Zarr;
-            # a name with a known extension still picks its own writer below
+        fmt = value.get("format")
+        if fmt == TIFF_SEQ:
+            warn(
+                f"The {TIFF_SEQ!r} format is no longer supported. Using the "
+                f"{OME_ZARR} writer, unless the name has a known extension.",
+                stacklevel=2,
+            )
             self._writer_combo.setCurrentText(OME_ZARR)
             fmt = None
         elif fmt and fmt not in WRITERS:  # pragma: no cover
@@ -171,13 +172,6 @@ class SaveGroupBox(QGroupBox):
             self._writer_combo.setCurrentText(str(fmt))
         else:
             self._update_writer_from_name()
-
-        if legacy_fmt:
-            warn(
-                f"The {TIFF_SEQ!r} format is no longer supported. "
-                f"Using the {self._writer_combo.currentText()} writer.",
-                stacklevel=2,
-            )
 
     def _update_writer_from_name(self, allow_name_change: bool = True) -> None:
         """Called when the user finishes editing the save_name widget.
@@ -194,14 +188,11 @@ class SaveGroupBox(QGroupBox):
         name = self.save_name.text()
         if extension := _known_extension(name):
             self._writer_combo.setCurrentText(EXT_TO_WRITER[extension])
-            # the writers use the lower-case extension (e.g. "x.OME.TIF" is
-            # written as "x.ome.tif"), so show the name that will be written
+            # the writers lower-case the extension
             if allow_name_change and not name.endswith(extension):
                 self.save_name.setText(name[: -len(extension)] + extension)
 
         elif not allow_name_change:
-            # keep the current writer; the extension is added when the
-            # name is next edited (e.g. before an MDA run)
             if ext := Path(name).suffix:
                 warn(
                     f"Invalid format {ext!r}. "
