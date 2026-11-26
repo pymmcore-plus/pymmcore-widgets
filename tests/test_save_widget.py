@@ -81,7 +81,6 @@ def test_writer_combo_text_changed(qtbot: QtBot, writer: str) -> None:
 
 
 def test_tiff_sequence_not_offered(qtbot: QtBot) -> None:
-    """pymmcore-plus has no tiff-sequence writer for a path, so it is not offered."""
     wdg = SaveGroupBox()
     qtbot.addWidget(wdg)
     items = [wdg._writer_combo.itemText(i) for i in range(wdg._writer_combo.count())]
@@ -90,17 +89,7 @@ def test_tiff_sequence_not_offered(qtbot: QtBot) -> None:
 
 
 def test_set_value_legacy_tiff_sequence(qtbot: QtBot) -> None:
-    """A saved sequence with the old tiff-sequence format still loads."""
-    wdg = SaveGroupBox()
-    qtbot.addWidget(wdg)
-    with pytest.warns(UserWarning, match=f"Using the {OME_ZARR} writer"):
-        wdg.setValue({"save_dir": "/some_path", "save_name": "exp", "format": TIFF_SEQ})
-    assert wdg.value()["format"] == OME_ZARR
-    assert wdg.value()["save_name"] == "exp.ome.zarr"
-
-
-def test_set_value_legacy_tiff_sequence_ignores_current_writer(qtbot: QtBot) -> None:
-    """The old format picks OME-Zarr, whatever writer the widget used before."""
+    """A saved sequence with the old tiff-sequence format loads as OME-Zarr."""
     wdg = SaveGroupBox()
     qtbot.addWidget(wdg)
     wdg._writer_combo.setCurrentText(OME_TIFF)
@@ -119,20 +108,19 @@ def test_set_value_legacy_tiff_sequence_ignores_current_writer(qtbot: QtBot) -> 
 
 
 @pytest.mark.parametrize(
-    ("name", "writer", "expected"),
+    ("name", "start", "writer", "expected"),
     [
-        ("exp.OME.TIF", OME_TIFF, "exp.ome.tif"),
-        ("exp.Ome.Tiff", OME_TIFF, "exp.ome.tiff"),
-        ("exp.OME.ZARR", OME_ZARR, "exp.ome.zarr"),
+        ("exp.OME.TIF", OME_ZARR, OME_TIFF, "exp.ome.tif"),
+        ("exp.Ome.Tiff", OME_ZARR, OME_TIFF, "exp.ome.tiff"),
+        ("exp.OME.ZARR", OME_TIFF, OME_ZARR, "exp.ome.zarr"),
     ],
 )
 def test_extension_case_insensitive(
-    qtbot: QtBot, name: str, writer: str, expected: str
+    qtbot: QtBot, name: str, start: str, writer: str, expected: str
 ) -> None:
-    """Extensions are recognized in any case and shown as they are written."""
     wdg = SaveGroupBox()
     qtbot.addWidget(wdg)
-    wdg._writer_combo.setCurrentText(OME_ZARR if writer == OME_TIFF else OME_TIFF)
+    wdg._writer_combo.setCurrentText(start)
     wdg.save_name.setText(name)
     wdg.save_name.editingFinished.emit()
     assert wdg._writer_combo.currentText() == writer

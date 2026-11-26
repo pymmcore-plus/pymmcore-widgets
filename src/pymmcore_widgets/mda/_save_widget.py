@@ -30,9 +30,7 @@ if TYPE_CHECKING:
 
 OME_ZARR = "ome-zarr"
 OME_TIFF = "ome-tiff"
-# No longer offered: recent pymmcore-plus versions write an output path through
-# ome-writers, which has no tiff-sequence format (a path without extension is
-# written as OME-Zarr). Kept to read sequences saved by older versions.
+# no longer offered (ome-writers has no such format), only read from old sequences
 TIFF_SEQ = "tiff-sequence"
 
 # dict with writer name and extension
@@ -156,8 +154,7 @@ class SaveGroupBox(QGroupBox):
 
         legacy_fmt = (fmt := value.get("format")) == TIFF_SEQ
         if legacy_fmt:
-            # pymmcore-plus wrote these names without extension as OME-Zarr;
-            # a name with a known extension still picks its own writer below
+            # set before the name, which can still pick its own writer below
             self._writer_combo.setCurrentText(OME_ZARR)
             fmt = None
         elif fmt and fmt not in WRITERS:  # pragma: no cover
@@ -194,14 +191,12 @@ class SaveGroupBox(QGroupBox):
         name = self.save_name.text()
         if extension := _known_extension(name):
             self._writer_combo.setCurrentText(EXT_TO_WRITER[extension])
-            # the writers use the lower-case extension (e.g. "x.OME.TIF" is
-            # written as "x.ome.tif"), so show the name that will be written
+            # the writers lower-case the extension, show the name that is written
             if allow_name_change and not name.endswith(extension):
                 self.save_name.setText(name[: -len(extension)] + extension)
 
         elif not allow_name_change:
-            # keep the current writer; the extension is added when the
-            # name is next edited (e.g. before an MDA run)
+            # keep the writer, the extension is added on the next edit (MDA run)
             if ext := Path(name).suffix:
                 warn(
                     f"Invalid format {ext!r}. "
