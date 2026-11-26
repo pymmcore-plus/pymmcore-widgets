@@ -1271,3 +1271,56 @@ def test_save_name_counts_up_after_runs(
                 assert tif.is_ome
                 assert len(tif.pages) == 2
         mda_wdg._on_mda_finished(mda_wdg.value())
+
+
+@pytest.mark.parametrize("extension", [".ome.tiff", ".ome.tif"])
+def test_get_next_available_paths_multi_position_ome_tiff(
+    extension: str, tmp_path: Path
+) -> None:
+    """A multi-position OME-TIFF is a folder without the extension."""
+    path = tmp_path / f"test{extension}"
+    assert get_next_available_path(path) == path
+
+    (tmp_path / "test").mkdir()
+    assert get_next_available_path(path) == tmp_path / f"test_001{extension}"
+
+    (tmp_path / "test_004").mkdir()
+    assert get_next_available_path(path) == tmp_path / f"test_005{extension}"
+
+    # folders of other names and plain files do not count
+    (tmp_path / "other_009").mkdir()
+    (tmp_path / "test_007").touch()
+    assert get_next_available_path(path) == tmp_path / f"test_005{extension}"
+
+    # only for OME-TIFF: OME-Zarr is never written without its extension
+    zarr = tmp_path / "test.ome.zarr"
+    assert get_next_available_path(zarr) == zarr
+
+
+def test_get_next_available_paths_multi_position_ome_tiff_case(
+    tmp_path: Path,
+) -> None:
+    """Folders count whatever their case (case-insensitive file systems)."""
+    (tmp_path / "EXP").mkdir()
+    (tmp_path / "EXP_001").mkdir()
+    path = tmp_path / "exp.ome.tif"
+    assert get_next_available_path(path) == tmp_path / "exp_002.ome.tif"
+
+
+def test_save_name_counts_up_after_multi_position_ome_tiff_runs(
+    global_mmcore: CMMCorePlus, qtbot: QtBot, tmp_path: Path
+) -> None:
+    """A multi-position OME-TIFF run is a folder; the next run counts up."""
+    mda_wdg = MDAWidget(mmcore=global_mmcore)
+    qtbot.addWidget(mda_wdg)
+    mda_wdg.setValue(useq.MDASequence(stage_positions=[(0, 0, 0), (5, 5, 0)]))
+    mda_wdg.save_info.setValue(tmp_path / "exp.ome.tif")
+
+    for expected in ("exp", "exp_001"):
+        save_path = mda_wdg.prepare_mda()
+        assert isinstance(save_path, Path)
+        assert save_path.name == f"{expected}.ome.tif"
+        global_mmcore.mda.run(mda_wdg.value(), output=save_path)
+        # ome-writers writes one file per position into a folder
+        assert (tmp_path / expected).is_dir()
+        mda_wdg._on_mda_finished(mda_wdg.value())
