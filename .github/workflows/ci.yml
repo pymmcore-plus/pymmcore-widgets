@@ -82,7 +82,7 @@ jobs:
           PYTEST_ADDOPTS: ${{ matrix.resolution == 'lowest-direct' && '-W ignore' || '' }}
 
       - name: Upload coverage
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: covreport-${{ matrix.os }}-py${{ matrix.python-version }}-${{ matrix.backend }}-${{ matrix.resolution }}-${{ matrix.nano && 'nano' || 'standard' }}
           path: ./.coverage*
@@ -142,22 +142,23 @@ jobs:
           path: napari-micromanager
           fetch-depth: 0
 
-      - uses: actions/setup-python@v6
+      - uses: astral-sh/setup-uv@v7
         with:
           python-version: "3.11"
+          enable-cache: true
 
       - uses: pyvista/setup-headless-display-action@v4
 
       - name: Install dependencies
+        working-directory: napari-micromanager
         run: |
-          python -m pip install -U pip
-          python -m pip install -e ./pymmcore-widgets[PyQt6]
-          python -m pip install -e ./napari-micromanager[test]
+          uv sync --group test --extra PyQt6
+          uv pip install -e ../pymmcore-widgets
 
       - uses: pymmcore-plus/setup-mm-test-adapters@main
 
       - name: Run napari-micromanager tests
-        run: python -m pytest -v --color=yes -W ignore
+        run: uv run pytest -v --color=yes -W ignore
         working-directory: napari-micromanager
 
   deploy:

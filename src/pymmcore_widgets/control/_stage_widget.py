@@ -2,10 +2,9 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, cast
 
-from pyconify import svg_path
 from pymmcore_plus import CMMCorePlus, DeviceType, Keyword
 from qtpy.QtCore import QEvent, QObject, QSize, Qt, QTimerEvent, Signal, Slot
-from qtpy.QtGui import QContextMenuEvent
+from qtpy.QtGui import QContextMenuEvent, QPaintEvent
 from qtpy.QtWidgets import (
     QCheckBox,
     QDoubleSpinBox,
@@ -16,6 +15,9 @@ from qtpy.QtWidgets import (
     QPushButton,
     QRadioButton,
     QSpinBox,
+    QStyle,
+    QStyleOptionButton,
+    QStylePainter,
     QVBoxLayout,
     QWidget,
 )
@@ -57,22 +59,25 @@ class MoveStageButton(QPushButton):
         self.setFlat(True)
         self.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         self.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.setAttribute(Qt.WidgetAttribute.WA_Hover)
+        self.setIcon(QIconifyIcon(glyph, color="rgb(0, 180, 0)"))
+        self._hover_icon = QIconifyIcon(glyph, color="lime")
+        self._pressed_icon = QIconifyIcon(glyph, color="green")
+        self.setIconSize(QSize(45, 45))
         self.setStyleSheet(
-            f"""
-            MoveStageButton {{
-                border: none;
-                width: 38px;
-                image: url({svg_path(glyph, color="rgb(0, 180, 0)").as_posix()});
-                font-size: 38px;
-            }}
-            MoveStageButton:hover:!pressed {{
-                image: url({svg_path(glyph, color="lime").as_posix()});
-            }}
-            MoveStageButton:pressed {{
-                image: url({svg_path(glyph, color="green").as_posix()});
-            }}
-            """
+            "MoveStageButton { border: none; width: 38px; font-size: 38px; }"
         )
+
+    def paintEvent(self, event: QPaintEvent | None) -> None:
+        opt = QStyleOptionButton()
+        self.initStyleOption(opt)
+        if opt.state & QStyle.StateFlag.State_Enabled:
+            if opt.state & QStyle.StateFlag.State_Sunken:
+                opt.icon = self._pressed_icon
+            elif opt.state & QStyle.StateFlag.State_MouseOver:
+                opt.icon = self._hover_icon
+        painter = QStylePainter(self)
+        painter.drawControl(QStyle.ControlElement.CE_PushButton, opt)
 
 
 class MoveStageSpinBox(QDoubleSpinBox):
@@ -375,12 +380,13 @@ class StageWidget(QWidget):
         self._set_as_default()
 
     def _set_as_default(self) -> None:
-        if self._dtype is DeviceType.XYStage:
-            if self._mmc.getXYStageDevice() == self._device:
-                self._set_as_default_btn.setChecked(True)
-        elif self._dtype is DeviceType.Stage:
-            if self._mmc.getFocusDevice() == self._device:
-                self._set_as_default_btn.setChecked(True)
+        with signals_blocked(self._set_as_default_btn):
+            if self._dtype is DeviceType.XYStage:
+                if self._mmc.getXYStageDevice() == self._device:
+                    self._set_as_default_btn.setChecked(True)
+            elif self._dtype is DeviceType.Stage:
+                if self._mmc.getFocusDevice() == self._device:
+                    self._set_as_default_btn.setChecked(True)
 
     @Slot(bool)
     def _on_radiobutton_toggled(self, state: bool) -> None:

@@ -106,26 +106,29 @@ class PresetsWidget(QWidget):
     def _update_if_props_not_match_preset(self) -> None:
         if not self._mmc.getAvailableConfigs(self._group):
             return
-        for preset in self._presets:
-            _set_combo = True
-            for dev, prop, value in self._mmc.getConfigData(self._group, preset):
-                cache_value = self._mmc.getPropertyFromCache(dev, prop)
-                if cache_value != value:
-                    _set_combo = False
-                    break
-            if _set_combo:
-                # remove NO_MATCH if it exists
-                if (no_match_index := self._combo.findText(NO_MATCH)) >= 0:
-                    self._combo.removeItem(no_match_index)
-                with signals_blocked(self._combo):
+
+        with signals_blocked(self._combo):
+            for preset in self._presets:
+                _set_combo = True
+                for dev, prop, value in self._mmc.getConfigData(self._group, preset):
+                    cache_value = self._mmc.getPropertyFromCache(dev, prop)
+                    if cache_value != value:
+                        _set_combo = False
+                        break
+                if _set_combo:
+                    # remove NO_MATCH if it exists
+                    if (no_match_index := self._combo.findText(NO_MATCH)) >= 0:
+                        self._combo.removeItem(no_match_index)
                     self._combo.setCurrentText(preset)
                     return
-        # if None of the presets match the current system state
-        # add NO_MATCH to combo if not already there
-        current_items = [self._combo.itemText(i) for i in range(self._combo.count())]
-        if NO_MATCH not in current_items:
-            self._combo.addItem(NO_MATCH)
-        with signals_blocked(self._combo):
+
+            # if None of the presets match the current system state
+            # add NO_MATCH to combo if not already there
+            current_items = [
+                self._combo.itemText(i) for i in range(self._combo.count())
+            ]
+            if NO_MATCH not in current_items:
+                self._combo.addItem(NO_MATCH)
             self._combo.setCurrentText(NO_MATCH)
 
     @Slot(str, str)
@@ -140,6 +143,8 @@ class PresetsWidget(QWidget):
 
     @Slot(str, str, object)
     def _on_property_changed(self, device: str, property: str, value: str) -> None:
+        if not device:
+            return
         if (device, property) not in self.dev_prop:
             if self._mmc.getDeviceType(device) != DeviceType.StateDevice:
                 return

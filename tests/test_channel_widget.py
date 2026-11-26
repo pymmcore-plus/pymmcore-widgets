@@ -2,11 +2,14 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+import pytest
+import useq
 from qtpy.QtWidgets import QComboBox
 
 from pymmcore_widgets._util import block_core
 from pymmcore_widgets.control._channel_widget import ChannelWidget
 from pymmcore_widgets.control._presets_widget import NO_MATCH, PresetsWidget
+from pymmcore_widgets.useq_widgets import ChannelTable
 
 if TYPE_CHECKING:
     from pymmcore_plus import CMMCorePlus
@@ -68,3 +71,24 @@ def test_channel_widget(qtbot: QtBot, global_mmcore: CMMCorePlus):
     assert isinstance(wdg.channel_wdg, PresetsWidget)
     assert len(wdg.channel_wdg.allowedValues()) == 1
     assert global_mmcore.getChannelGroup() == "Channels"
+
+
+def test_channel_table_syncs_loaded_group(qtbot: QtBot):
+    table = ChannelTable()
+    qtbot.addWidget(table)
+    table.setChannelGroups({"Channel": ["DAPI"], "LightPath": ["GFP", "Cy5"]})
+
+    table.setValue([useq.Channel(group="LightPath", config="Cy5")])
+
+    assert table._group_combo.currentText() == "LightPath"
+    assert table.value()[0].group == "LightPath"
+    assert table.value()[0].config == "Cy5"
+
+
+def test_channel_table_warns_when_loaded_group_is_missing(qtbot: QtBot):
+    table = ChannelTable()
+    qtbot.addWidget(table)
+    table.setChannelGroups({"Channel": ["DAPI"]})
+
+    with pytest.warns(UserWarning, match="MissingGroup"):
+        table.setValue([useq.Channel(group="MissingGroup", config="Preset")])

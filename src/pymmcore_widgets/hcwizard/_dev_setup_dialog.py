@@ -232,11 +232,8 @@ class DeviceSetupDialog(QDialog):
             self.prop_table.hide()
 
         self.com_table = ComTable(core)
-        self.prop_table.portChanged.connect(self.com_table.rebuild_port)
-        if current_port is not None:
-            self.com_table.rebuild_port(current_port)
-        else:
-            self.com_table.hide()
+        self.prop_table.portChanged.connect(self._on_port_changed)
+        self._on_port_changed(current_port, "")
 
         # LAYOUT -------------
 
@@ -266,6 +263,15 @@ class DeviceSetupDialog(QDialog):
         # if device.initialized:
         #     with exceptions_as_dialog(use_error_message=True):
         #         device.load_in_core(reload=True)
+
+    def _on_port_changed(
+        self, port_dev_name: str | None, port_library_name: str = ""
+    ) -> None:
+        if port_dev_name is not None:
+            self.com_table.rebuild_port(port_dev_name, port_library_name)
+        valid_port = port_dev_name in [d for _, d in self._available_com_ports]
+        self.com_table.setVisible(valid_port)
+        self.adjustSize()
 
     def _on_name_changed(self) -> None:
         new_name = self.name_edit.text()

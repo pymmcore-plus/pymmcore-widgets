@@ -1,17 +1,20 @@
 from __future__ import annotations
 
-import re
-from pathlib import Path
 from typing import TYPE_CHECKING
+from unittest.mock import patch
 
+import pytest
 from pymmcore_plus import DeviceType
-from qtpy.QtWidgets import QGridLayout
+from qtpy.QtCore import QCoreApplication, QEvent, QPoint, QPointF, Qt
+from qtpy.QtGui import QColor, QEnterEvent
+from qtpy.QtWidgets import QWidget
 
 from pymmcore_widgets.control._stage_widget import MoveStageButton, StageWidget
 
 if TYPE_CHECKING:
     from pymmcore_plus import CMMCorePlus
     from pytestqt.qtbot import QtBot
+    from qtpy.QtGui import QPaintEvent
 
 
 def test_xy_stage_initialization(qtbot: QtBot, global_mmcore: CMMCorePlus) -> None:
@@ -297,18 +300,68 @@ def test_invert_axis(qtbot: QtBot, global_mmcore: CMMCorePlus) -> None:
     assert global_mmcore.getPosition() == 20.0
 
 
-def test_button_paths(qtbot: QtBot, global_mmcore: CMMCorePlus) -> None:
-    """Tests that Windows paths are never present in stylesheet urls."""
-    stage_xy = StageWidget("Z", levels=1)
-    qtbot.addWidget(stage_xy)
-    btn_grid = stage_xy._move_btns.layout()
-    assert isinstance(btn_grid, QGridLayout)
-    # For each button in the grid...
-    for child in btn_grid.children():
-        if not isinstance(child, MoveStageButton):
-            continue
-        # ...ensure each url...
-        for match in re.finditer(r"(?<=url\().*?(?=\);)", child.styleSheet()):
-            # ...is a valid path without backslashes.
-            assert "\\" not in match.group(0), "Backslashes shouldn't be in stylesheets"
-            assert Path(match.group(0)).is_file(), f"Invalid path: {match.group(0)}"
+def test_move_button_repaints_on_hover(qtbot: QtBot) -> None:
+    class PaintTrackingButton(MoveStageButton):
+        paint_count = 0
+
+        def paintEvent(self, event: QPaintEvent | None) -> None:
+            super().paintEvent(event)
+            self.paint_count += 1
+
+    window = QWidget()
+    window.resize(250, 150)
+    btn = PaintTrackingButton("mdi:chevron-up", 0, 1, parent=window)
+    qtbot.addWidget(window)
+    window.show()
+    qtbot.waitExposed(window)
+
+    qtbot.mouseMove(window, QPoint(200, 100))
+    qtbot.waitUntil(lambda: not btn.underMouse())
+    count = btn.paint_count
+    qtbot.mouseMove(btn, btn.rect().center())
+    qtbot.waitUntil(lambda: btn.underMouse() and btn.paint_count > count)
+    count = btn.paint_count
+    qtbot.mouseMove(window, QPoint(200, 100))
+    qtbot.waitUntil(lambda: not btn.underMouse() and btn.paint_count > count)
+
+
+def test_move_button_colors(qtbot: QtBot) -> None:
+    """The rendered icon follows hover/press/release/leave transitions."""
+    btn = MoveStageButton("mdi:chevron-up", 0, 1)
+    qtbot.addWidget(btn)
+    btn.show()
+
+    def icon_color() -> QColor:
+        image = btn.grab().toImage()
+        return image.pixelColor(image.rect().center())
+
+    QCoreApplication.sendEvent(btn, QEvent(QEvent.Type.Leave))
+    assert icon_color() == QColor(0, 180, 0)
+    enter = QEnterEvent(QPointF(1, 1), QPointF(1, 1), QPointF(1, 1))
+    QCoreApplication.sendEvent(btn, enter)
+    assert icon_color() == QColor("lime")
+    qtbot.mousePress(btn, Qt.MouseButton.LeftButton)
+    assert icon_color() == QColor("green")
+    qtbot.mouseRelease(btn, Qt.MouseButton.LeftButton)
+    assert icon_color() == QColor("lime")
+    QCoreApplication.sendEvent(btn, QEvent(QEvent.Type.Leave))
+    assert icon_color() == QColor(0, 180, 0)
+
+    btn.setEnabled(False)
+    QCoreApplication.sendEvent(btn, enter)
+    color = icon_color()
+    assert color != QColor("lime")
+    assert color != QColor("green")
+
+
+def test_move_button_survives_icon_fetch_failure(qtbot: QtBot) -> None:
+    """A failed icon download warns instead of raising."""
+    with (
+        patch("superqt.iconify.svg_path", side_effect=OSError("offline")),
+        pytest.warns(UserWarning, match="Error fetching icon"),
+    ):
+        btn = MoveStageButton("mdi:chevron-up", 0, 1)
+    qtbot.addWidget(btn)
+    assert not btn.icon().isNull()
+    btn.show()
+    btn.grab()

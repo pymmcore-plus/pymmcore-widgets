@@ -19,6 +19,7 @@ from pymmcore_widgets.mda._core_positions import (
     CoreConnectedPositionTable,
 )
 from pymmcore_widgets.mda._core_z import CoreConnectedZPlanWidget
+from pymmcore_widgets.mda._save_widget import OME_TIFF, OME_ZARR, WRITERS
 from pymmcore_widgets.useq_widgets._mda_sequence import (
     AF_AXIS_TOOLTIP,
     AF_DISABLED_TOOLTIP,
@@ -462,6 +463,88 @@ def test_run_mda_af_warning(qtbot: QtBot):
             assert wdg._mmc.mda.is_running()
 
 
+def test_af_per_position_enabled_after_run(
+    qtbot: QtBot, global_mmcore: CMMCorePlus
+) -> None:
+    """'Set AF Offset per Position' is enabled again after an MDA run.
+
+    The MDA widget disables its tabs while an MDA runs. When the run ends, the
+    checkbox, its checked state and the AF column must come back.
+    """
+    wdg = MDAWidget()
+    qtbot.addWidget(wdg)
+    wdg.setValue(useq.MDASequence(stage_positions=[(0, 0, 0)]))
+    pos_table = wdg.stage_positions
+    af = pos_table.af_per_position
+    af.setChecked(True)
+    af_col = pos_table.table().indexOf(pos_table.AF)
+    assert af.isEnabled()
+    assert not pos_table.table().isColumnHidden(af_col)
+
+    with qtbot.waitSignal(global_mmcore.mda.events.sequenceFinished):
+        wdg.execute_mda(None)
+
+    qtbot.waitUntil(af.isEnabled, timeout=2000)
+    assert af.isChecked()
+    assert not pos_table.table().isColumnHidden(af_col)
+
+
+def test_af_axes_kept_after_run_with_unchecked_positions(
+    qtbot: QtBot, global_mmcore: CMMCorePlus
+) -> None:
+    """The AF axes stay in the sequence after a run with an unchecked Positions tab.
+
+    The content of an unchecked tab must stay disabled after a run. Else 'Set AF
+    Offset per Position' is active, and value() leaves out the AF axes.
+    """
+    wdg = MDAWidget()
+    qtbot.addWidget(wdg)
+    wdg.stage_positions.af_per_position.setChecked(True)
+    wdg.tab_wdg.setChecked(wdg.stage_positions, False)
+    wdg.af_axis.setValue(("t",))
+    assert wdg.value().autofocus_plan.axes == ("t",)
+
+    with qtbot.waitSignal(global_mmcore.mda.events.sequenceFinished):
+        wdg.execute_mda(None)
+
+    qtbot.waitUntil(wdg.save_info.isEnabled, timeout=2000)
+    assert not wdg.stage_positions.isEnabled()
+    assert wdg.value().autofocus_plan.axes == ("t",)
+    # also if the content of the unchecked tab is enabled in another way
+    wdg.stage_positions.setEnabled(True)
+    assert wdg.value().autofocus_plan.axes == ("t",)
+
+
+@pytest.mark.parametrize("trigger", ["zplan", "core"])
+def test_af_stays_disabled_after_run(
+    qtbot: QtBot, global_mmcore: CMMCorePlus, trigger: str
+) -> None:
+    """The autofocus stays disabled after a run if it cannot be used.
+
+    This is the case with an absolute (TOP_BOTTOM) z plan, or with no autofocus device.
+    """
+    mmc = global_mmcore
+    wdg = MDAWidget()
+    qtbot.addWidget(wdg)
+    wdg.af_axis.setValue(("t",))
+    if trigger == "zplan":
+        with patch.object(QMessageBox, "warning", lambda *args, **kwargs: True):
+            # the z plan is in TOP_BOTTOM mode by default
+            wdg.tab_wdg.setChecked(wdg.z_plan, True)
+    else:
+        with qtbot.waitSignal(mmc.events.propertyChanged):
+            mmc.setProperty("Core", "AutoFocus", "")
+    assert not wdg.af_axis.isEnabled()
+    assert not wdg.value().autofocus_plan
+
+    with qtbot.waitSignal(mmc.mda.events.sequenceFinished):
+        wdg.execute_mda(None)
+
+    qtbot.waitUntil(wdg.save_info.isEnabled, timeout=2000)
+    assert not wdg.af_axis.isEnabled()
+    assert not wdg.value().autofocus_plan
+
+
 def test_core_connected_channel_wdg(qtbot: QtBot):
     wdg = CoreConnectedChannelTable()
     qtbot.addWidget(wdg)
@@ -509,10 +592,13 @@ def test_enable_core_tab(qtbot: QtBot):
         )
 
     mda_tabs = cast("CoreMDATabs", wdg.tab_wdg)
+    for t in range(mda_tabs.count()):
+        mda_tabs.setChecked(t, True)
+    mda_tabs._enable_tabs(False)
 
     mda_tabs._enable_tabs(True)
     # all tabs are enabled (you can switch between them)
-    assert [mda_tabs.tabBar().isTabEnabled(t) for t in range(mda_tabs.count())]
+    assert all(mda_tabs.tabBar().isTabEnabled(t) for t in range(mda_tabs.count()))
     # the tabs checkboxes are enabled
     assert all(cbox.isEnabled() for cbox in mda_tabs._cboxes)
     # the the tabs content is enabled
@@ -521,11 +607,17 @@ def test_enable_core_tab(qtbot: QtBot):
     mda_tabs._enable_tabs(False)
 
     # all tabs are still enabled (you can still switch between them)
-    assert [mda_tabs.tabBar().isTabEnabled(t) for t in range(mda_tabs.count())]
+    assert all(mda_tabs.tabBar().isTabEnabled(t) for t in range(mda_tabs.count()))
     # the tab checkboxes are disabled
-    assert not all(cbox.isEnabled() for cbox in mda_tabs._cboxes)
+    assert not any(cbox.isEnabled() for cbox in mda_tabs._cboxes)
     # the the tabs content is enabled
-    assert not wdgs_enabled(mda_tabs)
+    assert not any(mda_tabs.widget(t).isEnabled() for t in range(mda_tabs.count()))
+
+    # the content of an unchecked tab stays disabled
+    mda_tabs.setChecked(mda_tabs.time_plan, False)
+    mda_tabs._enable_tabs(True)
+    assert not mda_tabs.time_plan.isEnabled()
+    assert mda_tabs.stage_positions.isEnabled()
 
 
 def test_relative_z_with_no_include_z(global_mmcore: CMMCorePlus, qtbot: QtBot):
@@ -570,7 +662,7 @@ def test_mda_no_pos_set(global_mmcore: CMMCorePlus, qtbot: QtBot):
     assert round(wdg.value().stage_positions[0].y) == 20
     assert round(wdg.value().stage_positions[0].z) == 30
 
-    assert "p" in wdg.value().axis_order
+    assert wdg.value().axis_order[0] == "p"
 
 
 @pytest.mark.parametrize("ext", ["json", "yaml"])
@@ -687,8 +779,9 @@ def test_get_next_available_paths_special_cases(tmp_path: Path) -> None:
 
 def test_get_next_available_paths_unrelated_files(tmp_path: Path) -> None:
     """Unrelated files with the same extension should not affect the counter."""
-    # create an unrelated file with a high counter
+    # create unrelated files with a high counter, also with the same prefix
     (tmp_path / "other_009.ome.tiff").touch()
+    (tmp_path / "testing_009.ome.tiff").touch()
 
     # requesting a new "test.ome.tiff" should return it as-is (no counter)
     path = tmp_path / "test.ome.tiff"
@@ -1166,3 +1259,88 @@ def test_sub_wdg_channel_tab(qtbot: QtBot, global_mmcore: CMMCorePlus) -> None:
 
     # Click the button (this will open the dialog)
     btn.seq_btn.click()
+
+
+@pytest.mark.parametrize("writer", [OME_ZARR, OME_TIFF])
+def test_save_name_counts_up_after_runs(
+    writer: str, global_mmcore: CMMCorePlus, qtbot: QtBot, tmp_path: Path
+) -> None:
+    """A name without extension gets the writer's one, so the next run counts up.
+
+    Otherwise pymmcore-plus writes OME-Zarr to a different name than the widget
+    shows, and the next run does not find it.
+    """
+    mda_wdg = MDAWidget(mmcore=global_mmcore)
+    qtbot.addWidget(mda_wdg)
+    mda_wdg.setValue(useq.MDASequence(time_plan={"interval": 0, "loops": 2}))
+    mda_wdg.save_info._writer_combo.setCurrentText(writer)
+    mda_wdg.save_info.setValue(tmp_path / "exp")
+
+    ext = WRITERS[writer][0]
+    for expected in (f"exp{ext}", f"exp_001{ext}"):
+        save_path = mda_wdg.prepare_mda()
+        assert isinstance(save_path, Path)
+        assert save_path.name == expected
+        assert mda_wdg.save_info.value()["save_name"] == expected
+        global_mmcore.mda.run(mda_wdg.value(), output=save_path)
+        assert save_path.exists()
+        if writer == OME_TIFF:
+            import tifffile
+
+            with tifffile.TiffFile(save_path) as tif:
+                assert tif.is_ome
+                assert len(tif.pages) == 2
+        mda_wdg._on_mda_finished(mda_wdg.value())
+
+
+@pytest.mark.parametrize("extension", [".ome.tiff", ".ome.tif"])
+def test_get_next_available_paths_multi_position_ome_tiff(
+    extension: str, tmp_path: Path
+) -> None:
+    """A multi-position OME-TIFF is a folder without the extension."""
+    path = tmp_path / f"test{extension}"
+    assert get_next_available_path(path) == path
+
+    (tmp_path / "test").mkdir()
+    assert get_next_available_path(path) == tmp_path / f"test_001{extension}"
+
+    (tmp_path / "test_004").mkdir()
+    assert get_next_available_path(path) == tmp_path / f"test_005{extension}"
+
+    # folders of other names and plain files do not count
+    (tmp_path / "other_009").mkdir()
+    (tmp_path / "test_007").touch()
+    assert get_next_available_path(path) == tmp_path / f"test_005{extension}"
+
+    # only for OME-TIFF: OME-Zarr is never written without its extension
+    zarr = tmp_path / "test.ome.zarr"
+    assert get_next_available_path(zarr) == zarr
+
+
+def test_get_next_available_paths_multi_position_ome_tiff_case(
+    tmp_path: Path,
+) -> None:
+    """Folders count whatever their case (case-insensitive file systems)."""
+    (tmp_path / "EXP").mkdir()
+    (tmp_path / "EXP_001").mkdir()
+    path = tmp_path / "exp.ome.tif"
+    assert get_next_available_path(path) == tmp_path / "exp_002.ome.tif"
+
+
+def test_save_name_counts_up_after_multi_position_ome_tiff_runs(
+    global_mmcore: CMMCorePlus, qtbot: QtBot, tmp_path: Path
+) -> None:
+    """A multi-position OME-TIFF run is a folder; the next run counts up."""
+    mda_wdg = MDAWidget(mmcore=global_mmcore)
+    qtbot.addWidget(mda_wdg)
+    mda_wdg.setValue(useq.MDASequence(stage_positions=[(0, 0, 0), (5, 5, 0)]))
+    mda_wdg.save_info.setValue(tmp_path / "exp.ome.tif")
+
+    for expected in ("exp", "exp_001"):
+        save_path = mda_wdg.prepare_mda()
+        assert isinstance(save_path, Path)
+        assert save_path.name == f"{expected}.ome.tif"
+        global_mmcore.mda.run(mda_wdg.value(), output=save_path)
+        # ome-writers writes one file per position into a folder
+        assert (tmp_path / expected).is_dir()
+        mda_wdg._on_mda_finished(mda_wdg.value())

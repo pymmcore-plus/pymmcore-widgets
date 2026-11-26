@@ -192,6 +192,7 @@ class StageExplorer(QWidget):
         tb.show_grid_action.triggered.connect(self._on_show_grid_action)
         tb.delete_rois_action.triggered.connect(self.roi_manager.clear)
         tb.scan_action.triggered.connect(self._on_scan_action)
+        tb.stop_scan_action.triggered.connect(self._on_stop_scan_action)
         tb.marker_mode_action_group.triggered.connect(self._update_marker_mode)
         tb.scan_menu.valueChanged.connect(self._on_scan_options_changed)
 
@@ -211,6 +212,7 @@ class StageExplorer(QWidget):
         self._mmc.events.systemConfigurationLoaded.connect(self._on_sys_config_loaded)
         self._mmc.events.imageSnapped.connect(self._on_image_snapped)
         self._mmc.mda.events.frameReady.connect(self._on_frame_ready)
+        self._mmc.mda.events.sequenceFinished.connect(self._on_sequence_finished)
         self._mmc.events.pixelSizeChanged.connect(self._on_pixel_size_changed)
         self._mmc.events.pixelSizeAffineChanged.connect(
             self._on_pixel_size_affine_changed
@@ -419,6 +421,19 @@ class StageExplorer(QWidget):
                 self._our_mda_running = True
                 self._mmc.run_mda(seq)
 
+    @Slot()
+    def _on_stop_scan_action(self) -> None:
+        """Cancel the running scan, or stop the stage if no scan is running."""
+        if self._mmc.mda.is_running():
+            self._mmc.mda.cancel()
+        elif xy_dev := self._mmc.getXYStageDevice():
+            self._mmc.stop(xy_dev)
+
+    @Slot()
+    def _on_sequence_finished(self) -> None:
+        """Reset scan state when the MDA sequence finishes."""
+        self._our_mda_running = False
+
     @Slot(object)
     def _on_scan_options_changed(self, value: tuple[float, OrderMode]) -> None:
         """Update scan settings on the ROI manager so visuals refresh."""
@@ -431,7 +446,6 @@ class StageExplorer(QWidget):
         if a0.key() == Qt.Key.Key_Escape:
             if self._our_mda_running:
                 self._mmc.mda.cancel()
-                self._our_mda_running = False
         super().keyPressEvent(a0)
 
     # CORE ------------------------------------------------------------------------
@@ -842,6 +856,10 @@ class StageExplorerToolbar(QToolBar):
         self.scan_menu = ScanMenu(self)
         scan_btn.setMenu(self.scan_menu)
         scan_btn.setPopupMode(QToolButton.ToolButtonPopupMode.MenuButtonPopup)
+        self.stop_scan_action = self.addAction(
+            QIconifyIcon("bi:sign-stop", color=GRAY),
+            "Stop Scan",
+        )
 
 
 class ScanMenu(QMenu):

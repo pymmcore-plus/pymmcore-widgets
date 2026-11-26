@@ -119,6 +119,15 @@ def fov_kwargs(core: CMMCorePlus) -> dict:
 # "name_001_002" -> ("name_001", "002")
 # "name_02" -> ('name_02', None)
 NUM_SPLIT = re.compile(r"(.*?)(?:_(\d{3,}))?$")
+# A multi-position OME-TIFF is written as a folder named like the file without
+# its extension, with one file per position (ome-writers).
+OME_TIFF_EXTENSIONS = (".ome.tif", ".ome.tiff")
+
+
+def _strip_counter(name: str) -> str:
+    """Return the name without a "_###" counter at the end."""
+    match = NUM_SPLIT.match(name)
+    return match.group(1) if match else name
 
 
 def get_next_available_path(requested_path: Path | str, min_digits: int = 3) -> Path:
@@ -145,6 +154,7 @@ def get_next_available_path(requested_path: Path | str, min_digits: int = 3) -> 
         stem = stem[:-4]
 
     # remove any existing counter from the stem to get the base name
+    requested_name = stem
     requested_num = None
     if match := NUM_SPLIT.match(stem):
         base_stem, num = match.groups()
@@ -153,10 +163,25 @@ def get_next_available_path(requested_path: Path | str, min_digits: int = 3) -> 
             stem = base_stem
 
     # look for existing files in the folder that share the same base stem
+    # cannot use existing.stem because of the ome (2-part-extension) special case
+    bases = [
+        base
+        for p in directory.glob(f"*{extension}")
+        if _strip_counter(base := p.name.replace(extension, "")) == stem
+    ]
+    exists = requested_path.exists()
+
+    # A multi-position OME-TIFF is a folder "stem" or "stem_###" instead.
+    # Compared without case, so that "EXP_001" blocks "exp_001" on
+    # case-insensitive file systems.
+    if extension in OME_TIFF_EXTENSIONS and directory.is_dir():
+        for p in directory.iterdir():
+            if p.is_dir() and _strip_counter(p.name).casefold() == stem.casefold():
+                bases.append(p.name)
+                exists = exists or p.name.casefold() == requested_name.casefold()
+
     current_max = 0
-    for existing in directory.glob(f"{stem}*{extension}"):
-        # cannot use existing.stem because of the ome (2-part-extension) special case
-        base = existing.name.replace(extension, "")
+    for base in bases:
         # if the base name ends with a number, increase the current_max
         if (match := NUM_SPLIT.match(base)) and (num := match.group(2)):
             current_max = max(int(num), current_max)
@@ -166,7 +191,7 @@ def get_next_available_path(requested_path: Path | str, min_digits: int = 3) -> 
 
     # if the path does not exist and there are no existing files,
     # return the requested path
-    if not requested_path.exists() and current_max == 0:
+    if not exists and current_max == 0:
         return requested_path
 
     current_max += 1

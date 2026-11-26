@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import warnings
 from collections import Counter
 from typing import TYPE_CHECKING, Any
 
@@ -118,10 +119,29 @@ class ChannelTable(DataTableWidget):
             An Iterable of [useq.Channels](https://pymmcore-plus.github.io/useq-schema/schema/axes/#useq.Channel).
         """
         _values = []
+        groups: set[str] = set()
         for v in value:
             if not isinstance(v, useq.Channel):  # pragma: no cover
                 raise TypeError(f"Expected useq.Channel, got {type(v)}")
+            if v.group:
+                groups.add(v.group)
             _values.append(v.model_dump(exclude_unset=True))
+
+        # When loading an MDA sequence, sync the selected group first so the config
+        # column is rebuilt with the correct preset choices before row data are set.
+        if len(groups) == 1:
+            group = next(iter(groups))
+            if group in self._groups:
+                with signals_blocked(self._group_combo):
+                    self._group_combo.setCurrentText(group)
+                self._on_group_changed()
+            elif self._groups:
+                warnings.warn(
+                    f"Loaded sequence uses channel group '{group}', but it is not "
+                    "available in the current Micro-Manager configuration.",
+                    stacklevel=2,
+                )
+
         super().setValue(_values)
 
     # ------------------- Private API -------------------

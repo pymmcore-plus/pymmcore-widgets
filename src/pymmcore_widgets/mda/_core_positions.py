@@ -156,14 +156,17 @@ class CoreConnectedPositionTable(PositionTable):
         but it was checked, we want to keep it checked but disabled (the super.value
         method takes care of excluding the AF column from the returned value if the
         checkbox is disabled but checked).
+
+        Only the AF column changes here, never the enabled state of the checkbox. The
+        EnabledChange event also comes when a parent widget is disabled, e.g. while
+        an MDA runs. Disabling the checkbox itself here would keep it disabled after
+        the parent is enabled again.
         """
         if not self.af_per_position.isEnabled():
-            # leave the checkbox checked but disable it
-            self.af_per_position.setEnabled(False)
+            # leave the checkbox checked, but hide the AF column
             self._on_af_per_position_toggled(False)
         elif self.af_per_position.isChecked():
             self._on_af_per_position_toggled(True)
-            self.af_per_position.setEnabled(True)
 
     def _show_hcs(self) -> None:
         """Show or raise the HCS wizard."""
@@ -401,14 +404,16 @@ class CoreConnectedPositionTable(PositionTable):
             af_engaged = self._mmc.isContinuousFocusLocked()
             af_offset = self._mmc.getAutoFocusOffset() if af_engaged else None
 
-            if self._mmc.getXYStageDevice():
+            if xy_dev := self._mmc.getXYStageDevice():
                 x = data.get(self.X.key, self._mmc.getXPosition())
                 y = data.get(self.Y.key, self._mmc.getYPosition())
                 self._mmc.setXYPosition(x, y)
+                self._mmc.waitForDevice(xy_dev)
 
-            if self.include_z.isChecked() and self._mmc.getFocusDevice():
+            if self.include_z.isChecked() and (focus_def := self._mmc.getFocusDevice()):
                 z = data.get(self.Z.key, self._mmc.getZPosition())
                 self._mmc.setZPosition(z)
+                self._mmc.waitForDevice(focus_def)
 
             # HANDLE AUTOFOCUS OFFSET___________________________________________________
 
@@ -429,21 +434,36 @@ class CoreConnectedPositionTable(PositionTable):
                         self._mmc.enableContinuousFocus(False)
                         self._perform_autofocus()
                         self._mmc.enableContinuousFocus(af_engaged)
-                        self._mmc.waitForSystem()
+                        self._wait_for_autofocus_devices()
                     except RuntimeError as e:
                         logger.warning("Hardware autofocus failed. %s", e)
-
-            self._mmc.waitForSystem()
 
     def _perform_autofocus(self) -> None:
         # run autofocus (run 3 times in case it fails)
         @retry(exceptions=RuntimeError, tries=3, logger=logger.warning)
         def _perform_full_focus() -> None:
             self._mmc.fullFocus()
-            self._mmc.waitForSystem()
+            self._wait_for_autofocus_devices()
 
-        self._mmc.waitForSystem()
+        self._wait_for_autofocus_devices()
         _perform_full_focus()
+
+    def _wait_for_autofocus_devices(self) -> None:
+        if af_dev := self._mmc.getAutoFocusDevice():
+            self._mmc.waitForDevice(af_dev)
+
+            # FIXME:
+            # it would be much better if pymmcore-plus or CMMCore directly
+            # had a better solution for waiting on the offset device associated with
+            # an autofocus device.  For now, we we "extend" pymmcore-plus's internal
+            # hack and access the private _getAutoFocusOffsetDevice to await it.
+            offset_getter = getattr(self._mmc, "_getAutoFocusOffsetDevice", None)
+            if callable(offset_getter):
+                if offset_dev := offset_getter(af_dev):
+                    self._mmc.waitForDevice(offset_dev)
+
+        if z_dev := self._mmc.getFocusDevice():
+            self._mmc.waitForDevice(z_dev)
 
     def _set_row_xy_enabled(self, row: int, enabled: bool, tip: str = "") -> None:
         """Enable/disable the XY columns and button for a specific row."""
