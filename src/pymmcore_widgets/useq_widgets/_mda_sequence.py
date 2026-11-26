@@ -546,10 +546,15 @@ class MDASequenceWidget(QWidget):
         self.valueChanged.emit()
 
     def _use_af_per_position(self) -> bool:
-        """Return True if autofocus per position is checked and enabled."""
+        """Return True if autofocus per position is checked and enabled.
+
+        The Positions tab must be checked too: else there are no positions, and the
+        global autofocus axes are used.
+        """
         return bool(
             self.stage_positions.af_per_position.isChecked()
             and self.stage_positions.af_per_position.isEnabled()
+            and self.tab_wdg.isChecked(self.stage_positions)
         )
 
     def _on_tab_checked(self, tab_idx: int) -> None:

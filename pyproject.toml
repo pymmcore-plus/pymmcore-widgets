@@ -74,6 +74,7 @@ test = [
     "pytest-qt>=4.5.0",
     "pyyaml>=6.0.2",
     "zarr >=2.15,<3",
+    "ome-writers[tifffile] >=0.3.0",
     "numcodecs >0.14.0,<0.16; python_version >= '3.13'",
     "numcodecs >0.12.0,<0.16",
     "pytest-xdist>=3.8.0",
