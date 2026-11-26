@@ -4,9 +4,7 @@ from typing import TYPE_CHECKING, Literal
 
 from pymmcore_plus import CMMCorePlus
 
-from pymmcore_widgets.useq_widgets._z import ROW_TOP_BOTTOM, Mode, ZPlanWidget
-
-from ._xy_bounds import MarkVisit
+from pymmcore_widgets.useq_widgets._zplan_widget import Mode, ZPlanWidget
 
 if TYPE_CHECKING:
     from qtpy.QtWidgets import QWidget
@@ -29,41 +27,23 @@ class CoreConnectedZPlanWidget(ZPlanWidget):
     def __init__(
         self, mmcore: CMMCorePlus | None = None, parent: QWidget | None = None
     ) -> None:
-        self.bottom_btn = MarkVisit(
-            "mdi:arrow-collapse-down", mark_text="Mark Bottom", icon_size=16
-        )
-        self.top_btn = MarkVisit(
-            "mdi:arrow-collapse-up", mark_text="Mark Top", icon_size=16
-        )
-
         super().__init__(parent)
         self._mmc = mmcore or CMMCorePlus.instance()
 
-        self.bottom_btn.mark.clicked.connect(self._mark_bottom)
-        self.top_btn.mark.clicked.connect(self._mark_top)
-        self.bottom_btn.visit.clicked.connect(self._visit_bottom)
-        self.top_btn.visit.clicked.connect(self._visit_top)
-
-        row = ROW_TOP_BOTTOM + 1  # --------------- Bottom / Top parameters
-        self._grid_layout.addWidget(self.bottom_btn, row, 1)
-        self._grid_layout.addWidget(self.top_btn, row, 4)
+        self._btn_mark_top.clicked.connect(self._mark_top)
+        self._btn_mark_bot.clicked.connect(self._mark_bottom)
 
     def setMode(
         self,
         mode: Mode | Literal["top_bottom", "range_around", "above_below"],
     ) -> None:
         super().setMode(mode)
-        self.bottom_btn.setVisible(self._mode == Mode.TOP_BOTTOM)
-        self.top_btn.setVisible(self._mode == Mode.TOP_BOTTOM)
-
-    def _mark_bottom(self) -> None:
-        self.bottom.setValue(self._mmc.getZPosition())
+        is_tb = self._mode == Mode.TOP_BOTTOM
+        self._btn_mark_top.setVisible(is_tb)
+        self._btn_mark_bot.setVisible(is_tb)
 
     def _mark_top(self) -> None:
         self.top.setValue(self._mmc.getZPosition())
 
-    def _visit_bottom(self) -> None:
-        self._mmc.setZPosition(self.bottom.value())
-
-    def _visit_top(self) -> None:
-        self._mmc.setZPosition(self.top.value())
+    def _mark_bottom(self) -> None:
+        self.bottom.setValue(self._mmc.getZPosition())
