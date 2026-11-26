@@ -1,6 +1,7 @@
 import math
 
 import numpy as np
+import pytest
 import useq
 from pymmcore_plus import CMMCorePlus
 
@@ -207,3 +208,211 @@ def test_plate_calibration_test_positions(global_mmcore: CMMCorePlus, qtbot) -> 
         data.append((hover_item_data.x, hover_item_data.y, hover_item_data.name))
 
     assert data == expected_data
+
+
+@pytest.mark.parametrize(
+    ("rows", "cols", "calibrated_wells", "min_required", "expected"),
+    [
+        # 1x1 plate: single well calibration
+        (1, 1, {(0, 0): (100.0, 200.0)}, 1, ((100.0, 200.0), (10, 10), 0.0)),
+        # 1x2 plate: single row, two wells
+        (
+            1,
+            2,
+            {(0, 0): (100.0, 200.0), (0, 1): (10100.0, 200.0)},
+            2,
+            ((100.0, 200.0), (10.0, 10), 0.0),
+        ),
+        # 2x1 plate: single column, two wells
+        (
+            2,
+            1,
+            {(0, 0): (100.0, 200.0), (1, 0): (100.0, -9800.0)},
+            2,
+            ((100.0, 200.0), (10, 10.0), 0.0),
+        ),
+    ],
+    ids=["1x1", "1x2-row", "2x1-col"],
+)
+def test_small_plate_calibration(
+    qtbot, rows, cols, calibrated_wells, min_required, expected
+) -> None:
+    """Test calibration for plates with fewer than 3 wells."""
+    wdg = PlateCalibrationWidget()
+    qtbot.addWidget(wdg)
+
+    plate = useq.WellPlate(
+        rows=rows, columns=cols, well_size=(5, 5), well_spacing=(10, 10)
+    )
+    wdg.setValue(plate)
+    assert wdg._min_wells_required == min_required
+
+    wdg._calibrated_wells = calibrated_wells
+    result = wdg._origin_spacing_rotation()
+    assert result is not None
+    origin, spacing, rotation = result
+    exp_origin, exp_spacing, exp_rotation = expected
+    assert math.isclose(origin[0], exp_origin[0], abs_tol=1e-3)
+    assert math.isclose(origin[1], exp_origin[1], abs_tol=1e-3)
+    assert math.isclose(spacing[0], exp_spacing[0], rel_tol=1e-6)
+    assert math.isclose(spacing[1], exp_spacing[1], rel_tol=1e-6)
+    assert rotation == exp_rotation
+
+
+@pytest.mark.parametrize(
+    ("rows", "cols", "calibrated_wells", "exp_measured_idx"),
+    [
+        # 1x3 plate: single row
+        (
+            1,
+            3,
+            {(0, 0): (0.0, 0.0), (0, 1): (3000.0, 0.0), (0, 2): (6000.0, 0.0)},
+            0,  # spacing[0] is measured from data
+        ),
+        # 3x1 plate: single column (row increases -> y decreases)
+        (
+            3,
+            1,
+            {(0, 0): (0.0, 0.0), (1, 0): (0.0, -3000.0), (2, 0): (0.0, -6000.0)},
+            1,  # spacing[1] is measured from data
+        ),
+    ],
+    ids=["single-row", "single-column"],
+)
+def test_collinear_plate_calibration(
+    qtbot, rows, cols, calibrated_wells, exp_measured_idx
+) -> None:
+    """Test calibration for collinear plates (single row or column)."""
+    wdg = PlateCalibrationWidget()
+    qtbot.addWidget(wdg)
+
+    plate = useq.WellPlate(
+        rows=rows, columns=cols, well_size=(2, 2), well_spacing=(3, 3)
+    )
+    wdg.setValue(plate)
+
+    wdg._calibrated_wells = calibrated_wells
+    result = wdg._origin_spacing_rotation()
+    assert result is not None
+    origin, spacing, rotation = result
+    assert origin == (0.0, 0.0)
+    assert math.isclose(spacing[exp_measured_idx], 3.0, rel_tol=1e-6)
+    assert spacing[1 - exp_measured_idx] == 3  # from plate spec
+    assert rotation == 0.0
+
+
+def test_collinear_plate_with_rotation(qtbot) -> None:
+    """Test collinear calibration with a rotated plate."""
+    wdg = PlateCalibrationWidget()
+    qtbot.addWidget(wdg)
+
+    plate = useq.WellPlate(rows=1, columns=3, well_size=(2, 2), well_spacing=(3, 3))
+    wdg.setValue(plate)
+
+    # Calibrate 3 wells in a row with ~5 degree CCW rotation
+    # Column axis in world (x, y) = (sp*cos(θ), sp*sin(θ))
+    angle_rad = np.deg2rad(5)
+    sp = 3000  # 3mm spacing in µm
+    dx = sp * np.cos(angle_rad)
+    dy = sp * np.sin(angle_rad)
+    wdg._calibrated_wells = {
+        (0, 0): (0.0, 0.0),
+        (0, 1): (dx, dy),
+        (0, 2): (2 * dx, 2 * dy),
+    }
+    result = wdg._origin_spacing_rotation()
+    assert result is not None
+    origin, spacing, rotation = result
+    assert math.isclose(origin[0], 0.0, abs_tol=1e-3)
+    assert math.isclose(origin[1], 0.0, abs_tol=1e-3)
+    assert math.isclose(spacing[0], 3.0, rel_tol=1e-4)
+    assert math.isclose(rotation, 5.0, abs_tol=0.1)
+
+
+def test_diagonal_collinear_returns_none(qtbot) -> None:
+    """Diagonal wells spanning multiple rows and columns trigger the affine fallback.
+
+    When calibrated wells are not all in the same row or column, the code tries
+    a full affine fit.  Geometrically collinear (diagonal) points make the
+    system rank-deficient, so ``_origin_spacing_rotation`` must return None.
+    """
+    wdg = PlateCalibrationWidget()
+    qtbot.addWidget(wdg)
+
+    plate = useq.WellPlate(rows=4, columns=4, well_size=(5, 5), well_spacing=(9, 9))
+    wdg.setValue(plate)
+
+    # Three diagonal wells: different rows *and* different columns, but collinear
+    wdg._calibrated_wells = {
+        (0, 0): (0.0, 0.0),
+        (1, 1): (100.0, 100.0),
+        (2, 2): (200.0, 200.0),
+    }
+    assert wdg._origin_spacing_rotation() is None
+
+
+def test_coincident_wells_collinear_returns_none(qtbot) -> None:
+    """_fit_collinear returns None when calibrated wells are coincident (spacing ~0)."""
+    wdg = PlateCalibrationWidget()
+    qtbot.addWidget(wdg)
+
+    plate = useq.WellPlate(rows=1, columns=3, well_size=(2, 2), well_spacing=(3, 3))
+    wdg.setValue(plate)
+
+    # Two wells at the same world position → measured spacing will be ~0
+    wdg._calibrated_wells = {
+        (0, 0): (0.0, 0.0),
+        (0, 1): (0.0, 0.0),
+        (0, 2): (0.0, 0.0),
+    }
+    assert wdg._origin_spacing_rotation() is None
+
+
+@pytest.mark.parametrize(
+    ("rows", "cols", "calibrated_wells", "is_single_row", "expected_origin"),
+    [
+        # Row wells not starting at row 0: all in row 2 of a 4x3 plate
+        (
+            4,
+            3,
+            {(2, 0): (0.0, 0.0), (2, 1): (3000.0, 0.0), (2, 2): (6000.0, 0.0)},
+            True,
+            (0.0, 6000.0),  # extrapolated 2 rows "up" (y += 3000 * 2)
+        ),
+        # Column wells not starting at col 0: all in col 1 of a 3x4 plate
+        (
+            3,
+            4,
+            {(0, 1): (0.0, 0.0), (1, 1): (0.0, -3000.0), (2, 1): (0.0, -6000.0)},
+            False,
+            (-3000.0, 0.0),  # extrapolated 1 column "left" (x -= 3000 * 1)
+        ),
+    ],
+    ids=["row-nonzero-fixed", "col-nonzero-fixed"],
+)
+def test_collinear_nonzero_fixed_index_extrapolation(
+    qtbot,
+    rows: int,
+    cols: int,
+    calibrated_wells: dict,
+    is_single_row: bool,
+    expected_origin: tuple[float, float],
+) -> None:
+    """_fit_collinear extrapolates A1 center when the fixed row/col index is not 0."""
+    wdg = PlateCalibrationWidget()
+    qtbot.addWidget(wdg)
+
+    plate = useq.WellPlate(
+        rows=rows, columns=cols, well_size=(2, 2), well_spacing=(3, 3)
+    )
+    wdg.setValue(plate)
+    wdg._calibrated_wells = calibrated_wells
+
+    result = wdg._origin_spacing_rotation()
+    assert result is not None
+    origin, spacing, rotation = result
+    assert math.isclose(origin[0], expected_origin[0], abs_tol=1.0)
+    assert math.isclose(origin[1], expected_origin[1], abs_tol=1.0)
+    assert math.isclose(spacing[0], 3.0, rel_tol=1e-4)
+    assert math.isclose(spacing[1], 3.0, rel_tol=1e-4)
+    assert rotation == 0.0
