@@ -19,6 +19,7 @@ from pymmcore_widgets.mda._core_positions import (
     CoreConnectedPositionTable,
 )
 from pymmcore_widgets.mda._core_z import CoreConnectedZPlanWidget
+from pymmcore_widgets.mda._save_widget import OME_TIFF, OME_ZARR, WRITERS
 from pymmcore_widgets.useq_widgets._mda_sequence import (
     AF_AXIS_TOOLTIP,
     AF_DISABLED_TOOLTIP,
@@ -1240,6 +1241,38 @@ def test_sub_wdg_channel_tab(qtbot: QtBot, global_mmcore: CMMCorePlus) -> None:
     btn.seq_btn.click()
 
 
+@pytest.mark.parametrize("writer", [OME_ZARR, OME_TIFF])
+def test_save_name_counts_up_after_runs(
+    writer: str, global_mmcore: CMMCorePlus, qtbot: QtBot, tmp_path: Path
+) -> None:
+    """A name without extension gets the writer's one, so the next run counts up.
+
+    Otherwise pymmcore-plus writes OME-Zarr to a different name than the widget
+    shows, and the next run does not find it.
+    """
+    mda_wdg = MDAWidget(mmcore=global_mmcore)
+    qtbot.addWidget(mda_wdg)
+    mda_wdg.setValue(useq.MDASequence(time_plan={"interval": 0, "loops": 2}))
+    mda_wdg.save_info._writer_combo.setCurrentText(writer)
+    mda_wdg.save_info.setValue(tmp_path / "exp")
+
+    ext = WRITERS[writer][0]
+    for expected in (f"exp{ext}", f"exp_001{ext}"):
+        save_path = mda_wdg.prepare_mda()
+        assert isinstance(save_path, Path)
+        assert save_path.name == expected
+        assert mda_wdg.save_info.value()["save_name"] == expected
+        global_mmcore.mda.run(mda_wdg.value(), output=save_path)
+        assert save_path.exists()
+        if writer == OME_TIFF:
+            import tifffile
+
+            with tifffile.TiffFile(save_path) as tif:
+                assert tif.is_ome
+                assert len(tif.pages) == 2
+        mda_wdg._on_mda_finished(mda_wdg.value())
+
+
 @pytest.mark.parametrize("extension", [".ome.tiff", ".ome.tif"])
 def test_get_next_available_paths_multi_position_ome_tiff(
     extension: str, tmp_path: Path
@@ -1278,7 +1311,6 @@ def test_save_name_counts_up_after_multi_position_ome_tiff_runs(
     global_mmcore: CMMCorePlus, qtbot: QtBot, tmp_path: Path
 ) -> None:
     """A multi-position OME-TIFF run is a folder; the next run counts up."""
-    pytest.importorskip("tifffile")
     mda_wdg = MDAWidget(mmcore=global_mmcore)
     qtbot.addWidget(mda_wdg)
     mda_wdg.setValue(useq.MDASequence(stage_positions=[(0, 0, 0), (5, 5, 0)]))
