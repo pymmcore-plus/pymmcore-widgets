@@ -152,13 +152,9 @@ class SaveGroupBox(QGroupBox):
             self.setChecked(True)
             return
 
-        fmt = value.get("format")
-        if fmt == TIFF_SEQ:
-            warn(
-                f"The {TIFF_SEQ!r} format is no longer supported. Using the "
-                f"{OME_ZARR} writer, unless the name has a known extension.",
-                stacklevel=2,
-            )
+        legacy_fmt = (fmt := value.get("format")) == TIFF_SEQ
+        if legacy_fmt:
+            # set before the name, which can still pick its own writer below
             self._writer_combo.setCurrentText(OME_ZARR)
             fmt = None
         elif fmt and fmt not in WRITERS:  # pragma: no cover
@@ -172,6 +168,13 @@ class SaveGroupBox(QGroupBox):
             self._writer_combo.setCurrentText(str(fmt))
         else:
             self._update_writer_from_name()
+
+        if legacy_fmt:
+            warn(
+                f"The {TIFF_SEQ!r} format is no longer supported. "
+                f"Using the {self._writer_combo.currentText()} writer.",
+                stacklevel=2,
+            )
 
     def _update_writer_from_name(self, allow_name_change: bool = True) -> None:
         """Called when the user finishes editing the save_name widget.
@@ -188,11 +191,12 @@ class SaveGroupBox(QGroupBox):
         name = self.save_name.text()
         if extension := _known_extension(name):
             self._writer_combo.setCurrentText(EXT_TO_WRITER[extension])
-            # the writers lower-case the extension
+            # the writers lower-case the extension, show the name that is written
             if allow_name_change and not name.endswith(extension):
                 self.save_name.setText(name[: -len(extension)] + extension)
 
         elif not allow_name_change:
+            # keep the writer, the extension is added on the next edit (MDA run)
             if ext := Path(name).suffix:
                 warn(
                     f"Invalid format {ext!r}. "

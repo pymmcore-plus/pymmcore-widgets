@@ -5,7 +5,6 @@ from typing import TYPE_CHECKING, cast
 from unittest.mock import Mock, patch
 
 import pytest
-import tifffile
 import useq
 from qtpy.QtCore import Qt, QTimer
 from qtpy.QtWidgets import QMessageBox
@@ -1266,6 +1265,8 @@ def test_save_name_counts_up_after_runs(
         global_mmcore.mda.run(mda_wdg.value(), output=save_path)
         assert save_path.exists()
         if writer == OME_TIFF:
+            import tifffile
+
             with tifffile.TiffFile(save_path) as tif:
                 assert tif.is_ome
                 assert len(tif.pages) == 2

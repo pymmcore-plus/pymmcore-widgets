@@ -83,7 +83,9 @@ def test_writer_combo_text_changed(qtbot: QtBot, writer: str) -> None:
 def test_tiff_sequence_not_offered(qtbot: QtBot) -> None:
     wdg = SaveGroupBox()
     qtbot.addWidget(wdg)
-    assert wdg._writer_combo.findText(TIFF_SEQ) == -1
+    items = [wdg._writer_combo.itemText(i) for i in range(wdg._writer_combo.count())]
+    assert items == list(WRITERS)
+    assert TIFF_SEQ not in items
 
 
 def test_set_value_legacy_tiff_sequence(qtbot: QtBot) -> None:
@@ -91,13 +93,13 @@ def test_set_value_legacy_tiff_sequence(qtbot: QtBot) -> None:
     wdg = SaveGroupBox()
     qtbot.addWidget(wdg)
     wdg._writer_combo.setCurrentText(OME_TIFF)
-    with pytest.warns(UserWarning, match="no longer supported"):
+    with pytest.warns(UserWarning, match=f"Using the {OME_ZARR} writer"):
         wdg.setValue({"save_dir": "/some_path", "save_name": "exp", "format": TIFF_SEQ})
     assert wdg.value()["format"] == OME_ZARR
     assert wdg.value()["save_name"] == "exp.ome.zarr"
 
     # a name with a known extension keeps its writer
-    with pytest.warns(UserWarning, match="no longer supported"):
+    with pytest.warns(UserWarning, match=f"Using the {OME_TIFF} writer"):
         wdg.setValue(
             {"save_dir": "/some_path", "save_name": "exp.ome.tif", "format": TIFF_SEQ}
         )
