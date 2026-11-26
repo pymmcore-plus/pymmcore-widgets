@@ -148,9 +148,6 @@ def _mock_pyconify(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[
         svg_file.write_text(svg_content)
         return svg_file
 
-    monkeypatch.setattr(
-        "pymmcore_widgets.control._stage_widget.svg_path", mock_svg_path
-    )
     monkeypatch.setattr("superqt.iconify.svg_path", mock_svg_path)
     yield
 
