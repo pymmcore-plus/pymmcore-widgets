@@ -40,3 +40,28 @@ def test_exposure_widget(qtbot: QtBot, global_mmcore: CMMCorePlus):
     global_mmcore.setProperty("Core", "Camera", "Camera")
     wdg.spinBox.setValue(0.1)
     qtbot.waitUntil(lambda: global_mmcore.getExposure() == 0.1)
+
+
+def test_exposure_widget_cross_thread_update(qtbot: QtBot, global_mmcore: CMMCorePlus):
+    """A core event handled on a worker thread must not write back to the core."""
+    import threading
+
+    global_mmcore.setExposure(20)
+    wdg = DefaultCameraExposureWidget(mmcore=global_mmcore)
+    qtbot.addWidget(wdg)
+    assert wdg.spinBox.value() == 20
+
+    echoes: list[float] = []
+    wdg.spinBox.valueChanged.connect(echoes.append)
+
+    def emit_from_thread() -> None:
+        wdg._on_exp_changed("Camera", 33.0)
+
+    t = threading.Thread(target=emit_from_thread)
+    t.start()
+    t.join()
+
+    # the update is queued to the main thread, not applied on the worker
+    assert wdg.spinBox.value() == 20
+    qtbot.waitUntil(lambda: wdg.spinBox.value() == 33.0)
+    assert echoes == []
