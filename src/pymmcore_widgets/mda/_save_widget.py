@@ -16,6 +16,8 @@ from qtpy.QtWidgets import (
     QWidget,
 )
 
+from pymmcore_widgets._util import OME_TIFF_EXTENSIONS
+
 if TYPE_CHECKING:
     from typing import TypedDict
 
@@ -36,7 +38,7 @@ TIFF_SEQ = "tiff-sequence"
 # dict with writer name and extension
 WRITERS: dict[str, list[str]] = {
     OME_ZARR: [".ome.zarr"],
-    OME_TIFF: [".ome.tif", ".ome.tiff"],
+    OME_TIFF: list(OME_TIFF_EXTENSIONS),
 }
 
 EXT_TO_WRITER = {x: w for w, exts in WRITERS.items() for x in exts}
