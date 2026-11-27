@@ -221,6 +221,7 @@ class CameraRoiWidget(QWidget):
         self._mmc.events.systemConfigurationLoaded.disconnect(self._on_sys_cfg_loaded)
         self._mmc.events.pixelSizeChanged.disconnect(self._update_lbl_info)
         self._mmc.events.roiSet.disconnect(self._on_roi_set)
+        self._mmc.events.propertyChanged.disconnect(self._on_property_changed)
 
     # ________________________________CORE CONNECTIONS________________________________
 
@@ -230,6 +231,9 @@ class CameraRoiWidget(QWidget):
         self.snap_checkbox.hide()
 
         if not cameras:
+            self._cameras.clear()
+            with signals_blocked(self.camera_combo):
+                self.camera_combo.clear()
             self._enable(False)
             return
 
@@ -511,6 +515,11 @@ class CameraRoiWidget(QWidget):
     @Slot()
     def _update_lbl_info(self) -> None:
         """Update the info label with the current ROI information."""
+        if not self.camera or self.camera not in self._mmc.getLoadedDevicesOfType(
+            DeviceType.Camera
+        ):
+            return
+
         start_x, start_y, width, height = self._get_roi_values()
 
         px_size = self._mmc.getPixelSizeUm() or 0
