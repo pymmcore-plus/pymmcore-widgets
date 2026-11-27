@@ -328,3 +328,27 @@ def test_roi_changed_signal(qtbot: QtBot):
 
     cam.start_y.setValue(20)
     mock.assert_has_calls([call(10, 20, 100, 200, CUSTOM_ROI)])
+
+
+def test_pixel_size_changed_without_camera(qtbot: QtBot):
+    """Updating info label when no camera is loaded should not raise RuntimeError."""
+    from pymmcore_plus import CMMCorePlus
+
+    mmc = CMMCorePlus()
+    cam = CameraRoiWidget(mmcore=mmc)
+    qtbot.addWidget(cam)
+
+    assert cam.camera == ""
+    # Should fail silently rather than raising RuntimeError: No device with label ""
+    mmc.events.pixelSizeChanged.emit(1.0)
+    assert cam.lbl_info.text() == "...."
+
+    # Also verify unloading cameras after a camera was loaded does not raise
+    with wait_signal(qtbot, mmc.events.systemConfigurationLoaded):
+        mmc.loadSystemConfiguration(TEST_CONFIG)
+    assert cam.camera == "Camera"
+
+    mmc.unloadAllDevices()
+    mmc.events.systemConfigurationLoaded.emit()
+    assert cam.camera == ""
+    mmc.events.pixelSizeChanged.emit(2.0)
